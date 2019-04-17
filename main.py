@@ -1,9 +1,9 @@
 import logging
-
+import os
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-
-TOKEN = '813564382:AAHKzCk-vLXULw19_rWxLAJEvHyfFOrWrrU'
+# Fetch token from Heroku config var
+TOKEN = os.environ['BOT_TOKEN']
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',

@@ -1,6 +1,19 @@
-heroku:
- stage: deploy
- only:
- - master
- script:
- - git push -f heroku master
+development:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - gem install dpl
+  - dpl --provider=heroku --app=task-o-bot-test --api-key=$HEROKU_API_KEY
+  only:
+  - develop
+
+production:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - gem install dpl
+  - dpl --provider=heroku --app=task-o-bot --api-key=$HEROKU_API_KEY
+  only:
+  - master
