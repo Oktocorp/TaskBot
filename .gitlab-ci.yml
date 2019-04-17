@@ -1,7 +1,9 @@
-heroku:
- stage: deploy
- only:
- - master
- script:
- - git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/task-o-bot.git
- - git push -f heroku master
+production:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - gem install dpl
+  - dpl --provider=heroku --app=task-o-bot --api-key=$HEROKU_API_KEY
+  only:
+  - master
