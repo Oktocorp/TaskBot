@@ -6,4 +6,4 @@ production:
   - gem install dpl
   - dpl --provider=heroku --app=task-o-bot --api-key=$HEROKU_API_KEY
   only:
-  - master
+  - develop
