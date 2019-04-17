@@ -2,7 +2,7 @@ import logging
 import os
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-
+# Fetch token from Heroku config var
 TOKEN = os.environ['BOT_TOKEN']
 
 # Enable logging
