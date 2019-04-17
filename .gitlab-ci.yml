@@ -1,12 +1,9 @@
-before_scripts:
+development:
+  type: deploy
   script:
   - apt-get update -qy
   - apt-get install -y ruby-dev
   - gem install dpl
-
-development:
-  type: deploy
-  script:
   - dpl --provider=heroku --app=task-o-bot-test --api-key=$HEROKU_API_KEY
   only:
   - develop
@@ -14,6 +11,9 @@ development:
 production:
   type: deploy
   script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - gem install dpl
   - dpl --provider=heroku --app=task-o-bot --api-key=$HEROKU_API_KEY
   only:
   - master
