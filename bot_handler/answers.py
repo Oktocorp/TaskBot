@@ -34,6 +34,11 @@ def get_list(update, context):
         update.message.reply_text('Извините, не получилось.')
         return
 
+    if not len(rows):
+        lst_text = 'Ваш список задач пуст!'
+        update.message.bot.send_message(chat_id=chat_id, text=lst_text)
+        return
+
     lst_text = ''
     for i, row in enumerate(rows):
         lst_text += f'{i + 1}) {row[0]}\n'
