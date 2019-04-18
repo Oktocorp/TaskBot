@@ -15,9 +15,10 @@ class BotHandler:
         self.dp = self.updater.dispatcher
 
         # Answer on different commands
-        self.dp.add_handler(CommandHandler("start", answers.start))
-        self.dp.add_handler(CommandHandler("help", answers.help_ans))
+        self.dp.add_handler(CommandHandler('start', answers.start))
+        self.dp.add_handler(CommandHandler('help', answers.help_ans))
         self.dp.add_handler(CommandHandler('add', answers.add))
+        self.dp.add_handler(CommandHandler('list', answers.get_list))
 
         # Generic message answer
         self.dp.add_handler(MessageHandler(Filters.text, answers.echo))
