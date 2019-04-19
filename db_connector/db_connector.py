@@ -1,6 +1,6 @@
 import os
 import psycopg2
-
+from psycopg2.extras import RealDictCursor
 import logger
 
 
@@ -41,13 +41,14 @@ class DataBaseConnector:
         self._close_conn(conn, cur)
         return True
 
-    def _select(self, *args):
+    def _fetch_success(self, *args):
         """
         Executes SQL query and fetches result
         """
         conn = None
         try:
-            conn = psycopg2.connect(self._db_url, sslmode='require')
+            conn = psycopg2.connect(self._db_url, sslmode='require',
+                                    cursor_factory=RealDictCursor)
         except (Exception, psycopg2.DatabaseError) as err:
             self._log.warning('Unable to connect to the DataBase', err)
             self._close_conn(conn)
@@ -84,14 +85,16 @@ class DataBaseConnector:
     def get_tasks(self, chat_id):
         """
         Returns list of tasks which belong to this chat
+        Each task is represented by dict
+        dict keys: id, creator_id, task_text, marked, deadline, workers
         """
         sql_str = '''
-        SELECT task_text, marked, deadline, workers 
-        FROM tasks WHERE chat_id = (%s)
+        SELECT id, creator_id, task_text, marked, deadline, workers 
+        FROM tasks WHERE chat_id = (%s)  AND closed = FALSE
         '''
         sql_vals = (chat_id, )
 
-        select_res = self._select(sql_str, sql_vals)
+        select_res = self._fetch_success(sql_str, sql_vals)
         if select_res is None:
             raise RuntimeError('Unable to fetch tasks from the DataBase')
         return select_res
