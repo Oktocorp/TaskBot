@@ -1,5 +1,5 @@
 import os
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 
 import logger
 from . import response

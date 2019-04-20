@@ -2,6 +2,7 @@ import pytz
 import db_connector
 import re
 from datetime import datetime
+from telegram_calendar_keyboard import calendar_keyboard
 
 
 DEF_TZ = pytz.timezone('Europe/Moscow')
