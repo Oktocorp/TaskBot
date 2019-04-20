@@ -21,8 +21,10 @@ def add(update, context):
     msg_text = re.sub('/add ', '', msg_text, 1)  # remove leading command
     try:
         handler.add_task(chat_id, creator_id, msg_text)
-    except RuntimeError:
+    except (ValueError, ConnectionError):
         update.message.reply_text('Извините, не получилось.')
+        return
+
     update.message.reply_text('Задание успешно добавлено.')
 
 
@@ -32,7 +34,7 @@ def get_list(update, context):
     chat_id = update.message.chat.id
     try:
         rows = handler.get_tasks(chat_id)
-    except RuntimeError:
+    except (ValueError, ConnectionError):
         update.message.reply_text('Извините, не получилось.')
         return
 
