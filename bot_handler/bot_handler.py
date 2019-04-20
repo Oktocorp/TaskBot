@@ -19,6 +19,7 @@ class BotHandler:
         self.dp.add_handler(CommandHandler('help', answers.help_ans))
         self.dp.add_handler(CommandHandler('add', answers.add))
         self.dp.add_handler(CommandHandler('list', answers.get_list))
+        self.dp.add_handler(CommandHandler('close', answers.close))
 
         # Generic message answer
         self.dp.add_handler(MessageHandler(Filters.text, answers.echo))

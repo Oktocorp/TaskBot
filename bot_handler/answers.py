@@ -28,6 +28,24 @@ def add(update, context):
     update.message.reply_text('Задание успешно добавлено.')
 
 
+def close(update, context):
+    """Adds new task to the list"""
+    handler = db_connector.DataBaseConnector()
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    # remove leading command
+    task_id = re.sub('/close ', '', update.message.text, 1)
+    try:
+        res_code = handler.close_task(task_id, chat_id, user_id)
+    except (ValueError, ConnectionError):
+        update.message.reply_text('Извините, не получилось.')
+        return
+    if not res_code:
+        update.message.reply_text('Вы не можете закрыть это задание.')
+    else:
+        update.message.reply_text('Задание успешно закрыто.')
+
+
 def get_list(update, context):
     """Adds new task to the list"""
     handler = db_connector.DataBaseConnector()
@@ -46,7 +64,7 @@ def get_list(update, context):
     lst_text = ''
     # todo: sort by deadline and pin marked to the top
     for i, row in enumerate(reversed(rows)):
-        lst_text += f'{i + 1}) {row["task_text"]}\n'
+        lst_text += f'{i + 1}. [id: {row["id"]}]\n{row["task_text"]}\n'
     update.message.bot.send_message(chat_id=chat_id, text=lst_text)
 
 

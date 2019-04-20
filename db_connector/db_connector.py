@@ -40,8 +40,9 @@ class DataBaseConnector:
         except (Exception, psycopg2.DatabaseError) as err:
             self._close_conn(err)
             raise ValueError('Unable to execute SQL')
+        rows_num = self._cur.rowcount
         self._close_conn()
-        return True
+        return rows_num
 
     def _fetch_success(self, *args):
         """
@@ -81,8 +82,27 @@ class DataBaseConnector:
         INSERT INTO tasks (chat_id, creator_id, task_text,
         marked, deadline, workers) VALUES (%s, %s, %s, %s, %s, %s)
         '''
-        sql_vals = (chat_id, creator_id, task_text, marked, deadline, workers)
-        return self._commit(sql_str, sql_vals)
+        sql_val = (chat_id, creator_id, task_text, marked, deadline, workers)
+        self._commit(sql_str, sql_val)
+
+    def close_task(self, task_id, chat_id, user_id):
+        """Closes task if possible
+        :return Success indicator
+        :raises ConnectionError: if DB exception occurred
+        :raises ValueError: if couldn't update task in the DB
+        """
+        sql_str = '''
+        UPDATE tasks
+        SET closed = (%s)
+        WHERE id = (%s)  AND chat_id = (%s)
+        AND (creator_id = (%s) OR (%s) = ANY(workers))
+        AND closed = (%s)
+        '''
+        sql_val = (True, task_id, chat_id, user_id, user_id, False)
+        update_res = self._commit(sql_str, sql_val)
+        if update_res is None or update_res == -1 or update_res == 0:
+            return False
+        return True
 
     def get_tasks(self, chat_id):
         """
@@ -96,10 +116,10 @@ class DataBaseConnector:
         """
         sql_str = '''
         SELECT id, creator_id, task_text, marked, deadline, workers 
-        FROM tasks WHERE chat_id = (%s)  AND closed = FALSE
+        FROM tasks WHERE chat_id = (%s)  AND closed = (%s)
         '''
-        sql_vals = (chat_id, )
+        sql_val = (chat_id, False)
 
-        select_res = self._fetch_success(sql_str, sql_vals)
+        select_res = self._fetch_success(sql_str, sql_val)
         return select_res
 
