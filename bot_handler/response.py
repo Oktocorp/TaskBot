@@ -63,6 +63,12 @@ def update_deadline(update, context):
     task_id = re.sub('/dl ', '', update.message.text, 1)
 
     # todo: Get real datetime
+    try:
+        update.message.reply_text('Please select a date: ', reply_markup=calendar_keyboard.create_calendar())   
+        #HERE U STOPPED
+    except (ValueError, ConnectionError):
+        update.message.reply_text('Извините, не получилось.')
+        return
     due_date = datetime(2019, 5, 30, 12, 30, 0)
     due_date = DEF_TZ.localize(due_date)
     try:
