@@ -2,7 +2,7 @@ import os
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 import logger
-from . import answers
+from . import response
 
 
 class BotHandler:
@@ -15,14 +15,12 @@ class BotHandler:
         self.dp = self.updater.dispatcher
 
         # Answer on different commands
-        self.dp.add_handler(CommandHandler('start', answers.start))
-        self.dp.add_handler(CommandHandler('help', answers.help_ans))
-        self.dp.add_handler(CommandHandler('add', answers.add))
-        self.dp.add_handler(CommandHandler('list', answers.get_list))
-        self.dp.add_handler(CommandHandler('close', answers.close))
-
-        # Generic message answer
-        self.dp.add_handler(MessageHandler(Filters.text, answers.echo))
+        self.dp.add_handler(CommandHandler('add', response.add))
+        self.dp.add_handler(CommandHandler('close', response.close))
+        self.dp.add_handler(CommandHandler('dl', response.update_deadline))
+        self.dp.add_handler(CommandHandler('help', response.help_msg))
+        self.dp.add_handler(CommandHandler('list', response.get_list))
+        self.dp.add_handler(CommandHandler('start', response.start))
 
         # Log all errors
         self.log = logger.get_logger(__name__)
@@ -35,5 +33,4 @@ class BotHandler:
     def start(self):
         """Start the bot."""
         self.updater.start_polling()
-
         self.updater.idle()

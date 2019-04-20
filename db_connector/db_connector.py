@@ -1,6 +1,7 @@
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from datetime import datetime
 import logger
 
 
@@ -73,7 +74,7 @@ class DataBaseConnector:
     def add_task(self, chat_id, creator_id, task_text, marked=False,
                  deadline=None, workers=None):
         """
-        Adds new task to the database.
+        Add new task to the database.
         :raises ConnectionError: if DB exception occurred
         :raises ValueError: if couldn't add task to DB
         """
@@ -86,7 +87,8 @@ class DataBaseConnector:
         self._commit(sql_str, sql_val)
 
     def close_task(self, task_id, chat_id, user_id):
-        """Closes task if possible
+        """
+        Close task if possible
         :return Success indicator
         :raises ConnectionError: if DB exception occurred
         :raises ValueError: if couldn't update task in the DB
@@ -95,10 +97,31 @@ class DataBaseConnector:
         UPDATE tasks
         SET closed = (%s)
         WHERE id = (%s)  AND chat_id = (%s)
-        AND (creator_id = (%s) OR (%s) = ANY(workers))
+        AND (workers IS NULL OR creator_id = (%s) OR (%s) = ANY(workers))
         AND closed = (%s)
         '''
         sql_val = (True, task_id, chat_id, user_id, user_id, False)
+        update_res = self._commit(sql_str, sql_val)
+        if update_res is None or update_res == -1 or update_res == 0:
+            return False
+        return True
+
+    def set_deadline(self, task_id, chat_id, user_id, deadline: datetime):
+        """
+        Update task deadline if possible
+        :param deadline: TIMEZONE AWARE!!! datetime object
+        :return Success indicator
+        :raises ConnectionError: if DB exception occurred
+        :raises ValueError: if couldn't update task in the DB
+        """
+        sql_str = '''
+        UPDATE tasks
+        SET deadline = (%s)
+        WHERE id = (%s)  AND chat_id = (%s)
+        AND (creator_id = (%s) OR (%s) = ANY(workers))
+        AND closed = (%s)
+        '''
+        sql_val = (deadline, task_id, chat_id, user_id, user_id, False)
         update_res = self._commit(sql_str, sql_val)
         if update_res is None or update_res == -1 or update_res == 0:
             return False
