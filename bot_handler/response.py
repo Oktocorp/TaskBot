@@ -2,6 +2,8 @@ import pytz
 import db_connector
 import re
 from datetime import datetime
+from telegram import ParseMode
+import html
 from telegram_calendar_keyboard import calendar_keyboard
 
 
@@ -79,24 +81,56 @@ def update_deadline(update, context):
 def get_list(update, context):
     """Sends the task list"""
     handler = db_connector.DataBaseConnector()
-    chat_id = update.message.chat.id
+    chat = update.message.chat
     try:
-        rows = handler.get_tasks(chat_id)
+        rows = handler.get_tasks(chat.id)
     except (ValueError, ConnectionError):
         update.message.reply_text('Извините, не получилось.')
         return
 
     if not rows:
-        lst_text = 'Ваш список задач пуст!'
-        update.message.bot.send_message(chat_id=chat_id, text=lst_text)
+        reps_text = 'Ваш список задач пуст!'
+        update.message.bot.send_message(chat_id=chat.id, text=reps_text)
         return
 
-    lst_text = ''
-    # todo: sort by deadline and pin marked to the top
-    for i, row in enumerate(reversed(rows)):
-        lst_text += f'{i + 1}. [id: {row["id"]}]\n{row["task_text"]}\n'
-        # Localize UTC time
-        dl = row["deadline"].astimezone(DEF_TZ) if row["deadline"] else '-'
-        lst_text += f'Срок: {dl}\n\n'
+    reps_text = ''
+    for row in (sorted(rows, key=_row_sort_key)):
+        task_mark = u'<b>!</b>' if row['marked'] else u'\u25b8'
+        reps_text += f'{task_mark} {html.escape(row["task_text"])}\n\n'
 
-    update.message.bot.send_message(chat_id=chat_id, text=lst_text)
+        # Parse workers list
+        if row['workers']:
+            workers = ''
+            for w_id in row['workers']:
+                w_info = chat.get_member(w_id)
+                f_name = w_info['user']['first_name']
+                l_name = w_info['user']['last_name']
+                tg_link = f'tg://user?id={w_id}'
+                workers += f'<a href="{tg_link}">{l_name} {f_name}</a>\n'
+
+            reps_text += f'<b>Исполнители:</b> \n{workers}\n'
+
+        # Localize UTC time
+        if row['deadline']:
+            dl_format = '%d.%m.%Y %H:%M'
+            dl = row['deadline'].astimezone(DEF_TZ).strftime(dl_format)
+            reps_text += f'<b>Срок:</b> <code>{dl}</code>\n'
+
+        reps_text += f'<b>Действия:</b>  /act_{row["id"]}\n'
+        reps_text += '----------------\n\n'
+
+    update.message.bot.send_message(chat_id=chat.id, text=reps_text,
+                                    parse_mode=ParseMode.HTML)
+
+
+def _row_sort_key(row):
+    """Sort tasks by marked flag and deadline"""
+    # Sort works in ascending order
+    # To show marked tasks first m_key must be False
+    m_key = False if row['marked'] else True
+    dl_key = row['deadline']
+    if not dl_key:  # If deadline is None
+        dl_key = datetime.max
+        tz = pytz.timezone('UTC')
+        dl_key = tz.localize(dl_key)
+    return m_key, dl_key
