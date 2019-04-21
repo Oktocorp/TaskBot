@@ -95,7 +95,7 @@ def get_list(update, context):
 
     reps_text = ''
     for row in (sorted(rows, key=_row_sort_key)):
-        task_mark = u'<b>!</b>' if row['marked'] else u'\u25b8'
+        task_mark = u'<b>[ ! ]</b> ' if row['marked'] else u'\u25b8 '
         reps_text += f'{task_mark} {html.escape(row["task_text"])}\n\n'
 
         # Parse workers list
