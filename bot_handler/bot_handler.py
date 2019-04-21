@@ -1,4 +1,5 @@
 import os
+import locale
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 
 import logger
@@ -26,6 +27,9 @@ class BotHandler:
         self.log = logger.get_logger(__name__)
         self.dp.add_error_handler(self._error)
 
+        # Set russian language
+        self._localize()
+
     def _error(self, update, context):
         """Log Errors caused by Updates."""
         self.log.warning(f'Update "{update}" caused error "{context.error}"')
@@ -34,3 +38,10 @@ class BotHandler:
         """Start the bot."""
         self.updater.start_polling()
         self.updater.idle()
+
+    def _localize(self):
+        try:
+            locale.setlocale(locale.LC_ALL, 'ru_RU.utf8')
+        except locale.Error as err:
+            self.log.warning('Unable to set locale', err)
+

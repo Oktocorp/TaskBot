@@ -110,14 +110,15 @@ def get_list(update, context):
 
             reps_text += f'<b>Исполнители:</b> \n{workers}\n'
 
+        # todo: strip date or year if possible
         # Localize UTC time
         if row['deadline']:
-            dl_format = '%d.%m.%Y %H:%M'
+            dl_format = ' %a %d.%m %H:%M'
             dl = row['deadline'].astimezone(DEF_TZ).strftime(dl_format)
             reps_text += f'<b>Срок:</b> <code>{dl}</code>\n'
 
         reps_text += f'<b>Действия:</b>  /act_{row["id"]}\n'
-        reps_text += '----------------\n\n'
+        reps_text += u'-' * 16 + '\n\n'
 
     update.message.bot.send_message(chat_id=chat.id, text=reps_text,
                                     parse_mode=ParseMode.HTML)
