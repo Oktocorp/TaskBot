@@ -105,10 +105,11 @@ def get_list(update, context):
                 w_info = chat.get_member(w_id)
                 f_name = w_info['user']['first_name']
                 l_name = w_info['user']['last_name']
-                tg_link = f'tg://user?id={w_id}'
+                username = w_info['user']['username']
+                tg_link = f'https://t.me/{username}'
                 workers += f'<a href="{tg_link}">{l_name} {f_name}</a>\n'
 
-            reps_text += f'<b>Исполнители:</b> \n{workers}\n'
+            reps_text += f'<b>Исполнители:</b> \n{workers}'
 
         # todo: strip date or year if possible
         # Localize UTC time
@@ -121,7 +122,9 @@ def get_list(update, context):
         reps_text += u'-' * 16 + '\n\n'
 
     update.message.bot.send_message(chat_id=chat.id, text=reps_text,
-                                    parse_mode=ParseMode.HTML)
+                                    parse_mode=ParseMode.HTML,
+                                    disable_web_page_preview=True,
+                                    disable_notification=True)
 
 
 def _row_sort_key(row):
