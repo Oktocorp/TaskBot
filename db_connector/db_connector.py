@@ -106,30 +106,29 @@ class DataBaseConnector:
             return False
         return True
 
-    def assign_task(self, task_id, chat_id, from_id, workers: list, admin=False):
+    def assign_task(self, task_id, chat_id, user_id, workers: list, admin=False):
         """
         Assign worker to the task
         Anyone can take empty task for himself
-        Assign to other workers is available for admin and creator
+        Assignment to other workers is available for admin
         :return: bool: Success indicator
         :raises ConnectionError: if DB exception occurred
         :raises ValueError: if couldn't update task in the DB
         """
+        take_flag = len(workers) == 1 and workers[0] == user_id
+        if not take_flag and not admin:
+            return False
+
         sql_str = '''
-        UPDATE tasks
-        SET workers = (%s)
-        WHERE id = (%s)  AND chat_id = (%s)
-        AND closed = (%s)
-        '''
-        sql_val = (workers, task_id, chat_id, False)
+                UPDATE tasks
+                SET workers = (%s), assigned = (%s)
+                WHERE id = (%s)  AND chat_id = (%s)
+                AND closed = (%s)
+                '''
+        sql_val = (workers, admin, task_id, chat_id, False)
 
-        take_flag = len(workers) == 1 and workers[0] == from_id
         if take_flag:
-            sql_str += 'AND (workers IS NULL)'
-
-        elif not admin:
-            sql_str += 'AND (workers IS NULL or creator_id = (%s))'
-            sql_val += (from_id,)
+            sql_str += 'AND workers IS NULL'
 
         update_res = self._commit(sql_str, sql_val)
         if update_res is None or update_res == -1 or update_res == 0:
