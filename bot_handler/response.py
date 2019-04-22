@@ -7,7 +7,18 @@ import html
 from telegram_calendar_keyboard import calendar_keyboard
 
 
-DEF_TZ = pytz.timezone('Europe/Moscow')
+_DEF_TZ = pytz.timezone('Europe/Moscow')
+_ERR_MSG = 'Извините, произошла ошибка'
+
+
+def _rem_command(text):
+    """Remove '/command' from text"""
+    return re.sub('/[a-zA-Z_]+', '', text, 1)
+
+
+def _get_task_id(text):
+    """Return string representing first decimal number in text"""
+    return re.search('(?:[^_ ])\d+', text).group(0)
 
 
 # todo: Adequate start message
@@ -26,14 +37,15 @@ def add(update, context):
     handler = db_connector.DataBaseConnector()
     chat_id = update.message.chat.id
     creator_id = update.message.from_user.id
-    msg_text = update.message.text
-    msg_text = re.sub('/add ', '', msg_text, 1)  # remove leading command
+    msg_text = _rem_command(update.message.text)
+    if not msg_text:
+        update.message.reply_text('Вы не можете добавить пустое задание.')
+        return
     try:
         handler.add_task(chat_id, creator_id, msg_text)
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text(_ERR_MSG)
         return
-
     update.message.reply_text('Задание успешно добавлено.')
 
 
@@ -44,11 +56,12 @@ def close(update, context):
     chat_id = update.message.chat.id
     user_id = update.message.from_user.id
     # remove leading command
-    task_id = re.sub('/close ', '', update.message.text, 1)
+    msg_text = _rem_command(update.message.text)
     try:
+        task_id = int(_get_task_id(msg_text))
         success = handler.close_task(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text(_ERR_MSG)
         return
     if not success:
         update.message.reply_text('Вы не можете закрыть это задание.')
@@ -62,15 +75,16 @@ def update_deadline(update, context):
     chat_id = update.message.chat.id
     user_id = update.message.from_user.id
     # remove leading command
-    task_id = re.sub('/dl ', '', update.message.text, 1)
+    msg_text = _rem_command(update.message.text)
 
     # todo: Get real datetime
     due_date = datetime(2019, 5, 30, 12, 30, 0)
-    due_date = DEF_TZ.localize(due_date)
+    due_date = _DEF_TZ.localize(due_date)
     try:
+        task_id = int(_get_task_id(msg_text))
         success = handler.set_deadline(task_id, chat_id, user_id, due_date)
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text(_ERR_MSG)
         return
     if not success:
         update.message.reply_text('Вы не можете установить срок этому заданию.')
@@ -85,7 +99,7 @@ def get_list(update, context):
     try:
         rows = handler.get_tasks(chat.id)
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text(_ERR_MSG)
         return
 
     if not rows:
@@ -114,7 +128,7 @@ def get_list(update, context):
         # Localize UTC time
         if row['deadline']:
             dl_format = ' %a %d.%m %H:%M'
-            dl = row['deadline'].astimezone(DEF_TZ).strftime(dl_format)
+            dl = row['deadline'].astimezone(_DEF_TZ).strftime(dl_format)
             reps_text += f'<b>Срок:</b> <code>{dl}</code>\n'
 
         reps_text += f'<b>Действия:</b>  /act_{row["id"]}\n'
@@ -142,12 +156,12 @@ def take(update, context):
     handler = db_connector.DataBaseConnector()
     chat_id = update.message.chat.id
     user_id = update.message.from_user.id
-    task_id = update.message.text
-    task_id = re.sub('/take ', '', task_id, 1)  # remove leading command
+    msg_text = _rem_command(update.message.text)
     try:
+        task_id = int(_get_task_id(msg_text))
         success = handler.assign_task(task_id, chat_id, user_id, [user_id])
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text(_ERR_MSG)
         return
 
     if not success:
