@@ -13,12 +13,14 @@ DEF_TZ = pytz.timezone('Europe/Moscow')
 # todo: Adequate start message
 def start(update, context):
     """Send a message when the command /start is issued."""
-    update.message.reply_text('Greetings from DeltaSquad!')
+    update.message.reply_text('Greetings from DeltaSquad!',
+                              disable_notification=True)
 
 
 def help_msg(update, context):
     """Send a message when the command /help is issued."""
-    update.message.reply_text('HELP IS ON ITS WAY!!!')
+    update.message.reply_text('HELP IS ON ITS WAY!!!',
+                              disable_notification=True)
 
 
 def add(update, context):
@@ -31,10 +33,12 @@ def add(update, context):
     try:
         handler.add_task(chat_id, creator_id, msg_text)
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text('Извините, не получилось.',
+                                  disable_notification=True)
         return
 
-    update.message.reply_text('Задание успешно добавлено.')
+    update.message.reply_text('Задание успешно добавлено.',
+                              disable_notification=True)
 
 
 # todo: Allow admin to close and modify any task
@@ -48,12 +52,15 @@ def close(update, context):
     try:
         success = handler.close_task(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text('Извините, не получилось.',
+                                  disable_notification=True)
         return
     if not success:
-        update.message.reply_text('Вы не можете закрыть это задание.')
+        update.message.reply_text('Вы не можете закрыть это задание.',
+                                  disable_notification=True)
     else:
-        update.message.reply_text('Задание успешно закрыто.')
+        update.message.reply_text('Задание успешно закрыто.',
+                                  disable_notification=True)
 
 
 def update_deadline(update, context):
@@ -70,12 +77,15 @@ def update_deadline(update, context):
     try:
         success = handler.set_deadline(task_id, chat_id, user_id, due_date)
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text('Извините, не получилось.',
+                                  disable_notification=True)
         return
     if not success:
-        update.message.reply_text('Вы не можете установить срок этому заданию.')
+        update.message.reply_text('Вы не можете установить срок этому заданию.',
+                                  disable_notification=True)
     else:
-        update.message.reply_text('Срок выполнения установлен.')
+        update.message.reply_text('Срок выполнения установлен.',
+                                  disable_notification=True)
 
 
 def get_list(update, context):
@@ -85,7 +95,8 @@ def get_list(update, context):
     try:
         rows = handler.get_tasks(chat.id)
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text('Извините, не получилось.',
+                                  disable_notification=True)
         return
 
     if not rows:
