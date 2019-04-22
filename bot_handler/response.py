@@ -135,3 +135,22 @@ def _row_sort_key(row):
         tz = pytz.timezone('UTC')
         dl_key = tz.localize(dl_key)
     return m_key, dl_key
+
+
+def take(update, context):
+    """Assign task to the current user"""
+    handler = db_connector.DataBaseConnector()
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    task_id = update.message.text
+    task_id = re.sub('/take ', '', task_id, 1)  # remove leading command
+    try:
+        success = handler.assign_task(task_id, chat_id, user_id, [user_id])
+    except (ValueError, ConnectionError):
+        update.message.reply_text('Извините, не получилось.')
+        return
+
+    if not success:
+        update.message.reply_text('Вы не можете взять это задание.')
+    else:
+        update.message.reply_text('Задание захвачено.')

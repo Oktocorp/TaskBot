@@ -22,6 +22,7 @@ class BotHandler:
         self.dp.add_handler(CommandHandler('help', response.help_msg))
         self.dp.add_handler(CommandHandler('list', response.get_list))
         self.dp.add_handler(CommandHandler('start', response.start))
+        self.dp.add_handler(CommandHandler('take', response.take))
 
         # Log all errors
         self.log = logger.get_logger(__name__)
