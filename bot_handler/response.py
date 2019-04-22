@@ -90,7 +90,8 @@ def get_list(update, context):
 
     if not rows:
         reps_text = 'Ваш список задач пуст!'
-        update.message.bot.send_message(chat_id=chat.id, text=reps_text)
+        update.message.bot.send_message(chat_id=chat.id, text=reps_text,
+                                        disable_notification=True)
         return
 
     reps_text = ''
