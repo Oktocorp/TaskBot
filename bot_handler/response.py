@@ -189,3 +189,23 @@ def ret_task(update, context):
         update.message.reply_text('Вы не можете вернуть это задание.')
     else:
         update.message.reply_text('Вы отказались от задания.')
+
+
+def rem_deadline(update, context):
+    """Removes task deadline"""
+    handler = db_connector.DataBaseConnector()
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    # remove leading command
+    msg_text = _rem_command(update.message.text)
+    try:
+        task_id = int(_get_task_id(msg_text))
+        success = handler.set_deadline(task_id, chat_id, user_id)
+    except (ValueError, ConnectionError):
+        update.message.reply_text(_ERR_MSG)
+        return
+    if not success:
+        update.message.reply_text('Вы не можете отменить срок выполнения '
+                                  'этого задания.')
+    else:
+        update.message.reply_text('Срок выполнения отменен.')

@@ -176,9 +176,10 @@ class DataBaseConnector:
             return False
         return True
 
-    def set_deadline(self, task_id, chat_id, user_id, deadline: datetime):
+    def set_deadline(self, task_id, chat_id, user_id, deadline: datetime = None):
         """
         Update task deadline if possible
+        To remove deadline leave deadline param empty
         :param deadline: TIMEZONE AWARE!!! datetime object
         :return Success indicator
         :raises ConnectionError: if DB exception occurred
