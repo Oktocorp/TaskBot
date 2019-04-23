@@ -16,13 +16,14 @@ class BotHandler:
         self.dp = self.updater.dispatcher
 
         # Answer on different commands
-        self.dp.add_handler(CommandHandler('add', response.add))
-        self.dp.add_handler(CommandHandler('close', response.close))
+        self.dp.add_handler(CommandHandler('add', response.add_task))
+        self.dp.add_handler(CommandHandler('close', response.close_task))
         self.dp.add_handler(CommandHandler('dl', response.update_deadline))
         self.dp.add_handler(CommandHandler('help', response.help_msg))
         self.dp.add_handler(CommandHandler('list', response.get_list))
+        self.dp.add_handler(CommandHandler('return', response.ret_task))
         self.dp.add_handler(CommandHandler('start', response.start))
-        self.dp.add_handler(CommandHandler('take', response.take))
+        self.dp.add_handler(CommandHandler('take', response.take_task))
 
         # Log all errors
         self.log = logger.get_logger(__name__)

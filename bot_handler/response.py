@@ -18,7 +18,9 @@ def _rem_command(text):
 
 def _get_task_id(text):
     """Return string representing first decimal number in text"""
-    return re.search('(?:[^_ ])\d+', text).group(0)
+    id_str = re.search('(?:[^_ ])[0-9]*', text)
+    id_str = id_str.group(0) if id_str else ''
+    return id_str
 
 
 # todo: Adequate start message
@@ -32,7 +34,7 @@ def help_msg(update, context):
     update.message.reply_text('HELP IS ON ITS WAY!!!')
 
 
-def add(update, context):
+def add_task(update, context):
     """Adds new task to the list"""
     handler = db_connector.DataBaseConnector()
     chat_id = update.message.chat.id
@@ -50,7 +52,7 @@ def add(update, context):
 
 
 # todo: Allow admin to close and modify any task
-def close(update, context):
+def close_task(update, context):
     """Mark the task as closed"""
     handler = db_connector.DataBaseConnector()
     chat_id = update.message.chat.id
@@ -122,7 +124,7 @@ def get_list(update, context):
                 tg_link = f'tg://user?id={w_id}'
                 workers += f'<a href="{tg_link}">{l_name} {f_name}</a>\n'
 
-            reps_text += f'<b>Исполнители:</b> \n{workers}\n'
+            reps_text += f'<b>Исполнитель:</b> {workers}'
 
         # todo: strip date or year if possible
         # Localize UTC time
@@ -151,7 +153,7 @@ def _row_sort_key(row):
     return m_key, dl_key
 
 
-def take(update, context):
+def take_task(update, context):
     """Assign task to the current user"""
     handler = db_connector.DataBaseConnector()
     chat_id = update.message.chat.id
@@ -168,3 +170,22 @@ def take(update, context):
         update.message.reply_text('Вы не можете взять это задание.')
     else:
         update.message.reply_text('Задание захвачено.')
+
+
+def ret_task(update, context):
+    """Return task to the vacant pool"""
+    handler = db_connector.DataBaseConnector()
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    msg_text = _rem_command(update.message.text)
+    try:
+        task_id = int(_get_task_id(msg_text))
+        success = handler.rem_worker(task_id, chat_id, user_id)
+    except (ValueError, ConnectionError):
+        update.message.reply_text(_ERR_MSG)
+        return
+
+    if not success:
+        update.message.reply_text('Вы не можете вернуть это задание.')
+    else:
+        update.message.reply_text('Вы отказались от задания.')
