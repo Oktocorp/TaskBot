@@ -26,12 +26,14 @@ def _get_task_id(text):
 # todo: Adequate start message
 def start(update, context):
     """Send a message when the command /start is issued."""
-    update.message.reply_text('Greetings from DeltaSquad!')
+    update.message.reply_text('Greetings from DeltaSquad!',
+                              disable_notification=True)
 
 
 def help_msg(update, context):
     """Send a message when the command /help is issued."""
-    update.message.reply_text('HELP IS ON ITS WAY!!!')
+    update.message.reply_text('HELP IS ON ITS WAY!!!',
+                              disable_notification=True)
 
 
 def add_task(update, context):
@@ -66,9 +68,11 @@ def close_task(update, context):
         update.message.reply_text(_ERR_MSG)
         return
     if not success:
-        update.message.reply_text('Вы не можете закрыть это задание.')
+        update.message.reply_text('Вы не можете закрыть это задание.',
+                                  disable_notification=True)
     else:
-        update.message.reply_text('Задание успешно закрыто.')
+        update.message.reply_text('Задание успешно закрыто.',
+                                  disable_notification=True)
 
 
 def update_deadline(update, context):
@@ -89,9 +93,11 @@ def update_deadline(update, context):
         update.message.reply_text(_ERR_MSG)
         return
     if not success:
-        update.message.reply_text('Вы не можете установить срок этому заданию.')
+        update.message.reply_text('Вы не можете установить срок этому заданию.',
+                                  disable_notification=True)
     else:
-        update.message.reply_text('Срок выполнения установлен.')
+        update.message.reply_text('Срок выполнения установлен.',
+                                  disable_notification=True)
 
 
 def get_list(update, context):
@@ -106,7 +112,8 @@ def get_list(update, context):
 
     if not rows:
         reps_text = 'Ваш список задач пуст!'
-        update.message.bot.send_message(chat_id=chat.id, text=reps_text)
+        update.message.bot.send_message(chat_id=chat.id, text=reps_text,
+                                        disable_notification=True)
         return
 
     reps_text = ''
@@ -121,7 +128,8 @@ def get_list(update, context):
                 w_info = chat.get_member(w_id)
                 f_name = w_info['user']['first_name']
                 l_name = w_info['user']['last_name']
-                tg_link = f'tg://user?id={w_id}'
+                username = w_info['user']['username']
+                tg_link = f'https://t.me/{username}'
                 workers += f'<a href="{tg_link}">{l_name} {f_name}</a>\n'
 
             reps_text += f'<b>Исполнитель:</b> {workers}'
@@ -137,7 +145,9 @@ def get_list(update, context):
         reps_text += u'-' * 16 + '\n\n'
 
     update.message.bot.send_message(chat_id=chat.id, text=reps_text,
-                                    parse_mode=ParseMode.HTML)
+                                    parse_mode=ParseMode.HTML,
+                                    disable_web_page_preview=True,
+                                    disable_notification=True)
 
 
 def _row_sort_key(row):
