@@ -58,7 +58,7 @@ class DataBaseConnector:
                                           cursor_factory=RealDictCursor)
         except (Exception, psycopg2.DatabaseError) as err:
             self._close_conn(err)
-            raise ConnectionError('Unable to connect to the DataBase')
+            raise ConnectionError('Unable to connect to the DataBase', err)
 
         self._cur = self._conn.cursor()
         try:
@@ -66,7 +66,7 @@ class DataBaseConnector:
             rows = self._cur.fetchall()
         except (Exception, psycopg2.DatabaseError) as err:
             self._close_conn(err)
-            raise ValueError('Unable to execute SQL')
+            raise ValueError('Unable to execute SQL', err)
 
         self._close_conn()
         return rows
@@ -225,3 +225,20 @@ class DataBaseConnector:
             raise
         return select_res
 
+    def task_info(self, task_id, chat_id):
+        """
+        Get task data as dict
+        :return: RealDictRow:(id, creator_id, task_text,
+                              marked, deadline, workers)
+        """
+        sql_str = '''
+                SELECT id, creator_id, task_text, marked, deadline, workers 
+                FROM tasks WHERE id = (%s) AND chat_id = (%s)
+                '''
+        sql_val = (task_id, chat_id)
+
+        try:
+            task = self._fetch_success(sql_str, sql_val)[0]
+        except (ValueError, ConnectionError):  # Pass the exception up
+            raise
+        return task
