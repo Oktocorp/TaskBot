@@ -25,6 +25,7 @@ class BotHandler:
         self.dp.add_handler(CommandHandler('start', response.start))
         self.dp.add_handler(CommandHandler('take', response.take_task))
         self.dp.add_handler(CommandHandler('no_dl', response.rem_deadline))
+        self.dp.add_handler(CommandHandler('act', response.act_task))
 
         # Log all errors
         self.log = logger.get_logger(__name__)

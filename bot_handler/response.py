@@ -5,6 +5,9 @@ from datetime import datetime
 from telegram import ParseMode
 import html
 from telegram_calendar_keyboard import calendar_keyboard
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import MessageHandler, Filters, Updater
+import os
 
 
 _DEF_TZ = pytz.timezone('Europe/Moscow')
@@ -219,3 +222,48 @@ def rem_deadline(update, context):
                                   'этого задания.')
     else:
         update.message.reply_text('Срок выполнения отменен.')
+
+
+def ask_choice(update, context):
+    choice = update.message.text
+    context.user_data['choice'] = choice
+    update.message.reply_text(
+        'Your {}? Yes, I would love to hear about that!'.format(choice.lower()))
+    print(context.user_data)
+
+# TODO: do something with reply
+def act_task(update, context):
+    handler = db_connector.DataBaseConnector()
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    msg_text = _rem_command(update.message.text)
+    try:
+        task_id = int(_get_task_id(msg_text))
+        buttons = ReplyKeyboardMarkup([["Закрыть"], ["Взять"]], selective=True, one_time_keyboard=True)
+        update.message.reply_text("Выберите действие с задачей",
+                                  disable_notification=True, reply_markup=buttons)
+
+        token = os.environ['BOT_TOKEN']
+        updater = Updater(token, use_context=True)
+
+        dp = updater.dispatcher
+        dp.add_handler(MessageHandler(Filters.text, ask_choice, pass_user_data=True))
+        # print(context.user_data)
+        choice = context.user_data['choice']
+        if choice == "Закрыть":
+            success = handler.close_task(task_id, chat_id, user_id)
+            if not success:
+                update.message.reply_text('Вы не можете закрыть это задание.',
+                                          disable_notification=True)
+            else:
+                update.message.reply_text('Задание успешно закрыто.',
+                                          disable_notification=True)
+        elif choice == "Взять":
+            success = handler.assign_task(task_id, chat_id, user_id, [user_id])
+            if not success:
+                update.message.reply_text('Вы не можете взять это задание.')
+            else:
+                update.message.reply_text('Задание захвачено.')
+    except (ValueError, ConnectionError):
+            update.message.reply_text(_ERR_MSG)
+
