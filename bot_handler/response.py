@@ -60,30 +60,27 @@ def update_deadline(update, context):
     handler = db_connector.DataBaseConnector()
     chat_id = update.message.chat.id
     user_id = update.message.from_user.id
-    print(chat_id, user_id)
     # remove leading command
     task_id = re.sub('/dl ', '', update.message.text, 1)
 
     # todo: Get real datetime
-    update.message.reply_text(f'Please select a date for task {task_id}', reply_markup=calendar_keyboard.create_calendar())    
+    update.message.reply_text(f'Пожалуйста, выберите дату для задания {task_id}', reply_markup=calendar_keyboard.create_calendar())    
 
 
 def inline_handler(update, context):
     selected, date, update.message = calendar_keyboard.process_calendar_selection(update, context)
 
     if selected:
-        update.message.reply_text(f'You selected {date.strftime("%d/%m/%Y")}\n', reply_markup=ReplyKeyboardRemove())
+        update.message.reply_text(f'Вы выбрали {date.strftime("%d/%m/%Y")}\n', reply_markup=ReplyKeyboardRemove())
 
     
     handler = db_connector.DataBaseConnector()
     # 563114293 
     update.message.bot.delete_message(update.message.chat.id, update.message.message_id)
-    print(update)
     
-    task_id = re.sub('Please select a date for task ', '', update.message.text, 1)
+    task_id = re.sub('Пожалуйста, выберите дату для задания ', '', update.message.text, 1)
     chat_id = update.message.chat.id
     user_id = update._effective_user.id #need to be fixed
-    print(chat_id, update.message, 'lol')
     
     year = int(date.strftime("%Y"))
     month = int(date.strftime("%m"))
