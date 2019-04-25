@@ -3,6 +3,7 @@ import db_connector
 import re
 from datetime import datetime
 from telegram_calendar_keyboard import calendar_keyboard
+from telegram import ReplyKeyboardRemove
 
 
 DEF_TZ = pytz.timezone('Europe/Moscow')
@@ -53,26 +54,73 @@ def close(update, context):
     else:
         update.message.reply_text('Задание успешно закрыто.')
 
-
+    
 def update_deadline(update, context):
     """Updates task deadline"""
     handler = db_connector.DataBaseConnector()
     chat_id = update.message.chat.id
     user_id = update.message.from_user.id
+    print(chat_id, user_id)
     # remove leading command
     task_id = re.sub('/dl ', '', update.message.text, 1)
 
     # todo: Get real datetime
+    update.message.reply_text(f'Please select a date for task {task_id}', reply_markup=calendar_keyboard.create_calendar())    
+
+
+def inline_handler(update, context):
+    selected, date, update.message = calendar_keyboard.process_calendar_selection(update, context)
+
+    if selected:
+        update.message.reply_text(f'You selected {date.strftime("%d/%m/%Y")}\n', reply_markup=ReplyKeyboardRemove())
+
+    
+    handler = db_connector.DataBaseConnector()
+    # 563114293 
+    update.message.bot.delete_message(update.message.chat.id, update.message.message_id)
+    print(update)
+    
+    task_id = re.sub('Please select a date for task ', '', update.message.text, 1)
+    chat_id = update.message.chat.id
+    user_id = update._effective_user.id #need to be fixed
+    print(chat_id, update.message, 'lol')
+    
+    year = int(date.strftime("%Y"))
+    month = int(date.strftime("%m"))
+    date = int(date.strftime("%d"))
+    due_date = datetime(year, month, date, 12, 0, 0)
+    due_date = DEF_TZ.localize(due_date)
+
     try:
-        update.message.reply_text('Please select a date: ', reply_markup=calendar_keyboard.create_calendar())   
-        #HERE U STOPPED
+        success = handler.set_deadline(29, chat_id, user_id, due_date)
     except (ValueError, ConnectionError):
         update.message.reply_text('Извините, не получилось.')
         return
-    due_date = datetime(2019, 5, 30, 12, 30, 0)
-    due_date = DEF_TZ.localize(due_date)
+    if not success:
+        update.message.reply_text('Вы не можете установить срок этому заданию.')
+    else:
+        update.message.reply_text('Срок выполнения установлен.')
+
+def get_time(update, context):
+    handler = db_connector.DataBaseConnector()
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    # remove leading command
+    time = re.sub('/time ', '', update.message.text, 1)
+
+    hours = time[:time.find(':')].strip()
+    minutes = time[time.find(':') + 1:time.find(':', time.find(':') + 1)].strip()
+    seconds = time[time.find(':', time.find(':') + 1) + 1:].strip()
+
+    if (hours.isdigit() and minutes.isdigit() and seconds.isdigit()):
+        due_date = datetime(2018, 5, 30, int(hours), int(minutes), int(seconds))
+        due_date = DEF_TZ.localize(due_date)
+    else:
+        due_date = datetime(2018, 5, 30, 12, 0, 0)
+        due_date = DEF_TZ.localize(due_date)
+        
     try:
-        success = handler.set_deadline(task_id, chat_id, user_id, due_date)
+        success = handler.set_deadline(29, chat_id, user_id, due_date)
     except (ValueError, ConnectionError):
         update.message.reply_text('Извините, не получилось.')
         return
