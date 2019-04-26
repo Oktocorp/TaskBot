@@ -254,16 +254,16 @@ def act_task(update, context):
             success = handler.close_task(task_id, chat_id, user_id)
             if not success:
                 update.message.reply_text('Вы не можете закрыть это задание.',
-                                          disable_notification=True)
+                                          disable_notification=True, reply_markup=ReplyKeyboardRemove())
             else:
                 update.message.reply_text('Задание успешно закрыто.',
-                                          disable_notification=True)
+                                          disable_notification=True, reply_markup=ReplyKeyboardRemove())
         elif choice == "Взять":
             success = handler.assign_task(task_id, chat_id, user_id, [user_id])
             if not success:
-                update.message.reply_text('Вы не можете взять это задание.')
+                update.message.reply_text('Вы не можете взять это задание.', reply_markup=ReplyKeyboardRemove())
             else:
-                update.message.reply_text('Задание захвачено.')
+                update.message.reply_text('Задание захвачено.', reply_markup=ReplyKeyboardRemove())
     except (ValueError, ConnectionError):
             update.message.reply_text(_ERR_MSG)
 
