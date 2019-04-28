@@ -45,8 +45,9 @@ class BotHandler:
                            RegexHandler('^Установить/изменить срок$',
                                         response.update_deadline,
                                         pass_user_data=True),
-                           # RegexHandler('^Изменить$',
-                           #              response.act_change_task)
+                           RegexHandler('^Удалить срок$',
+                                        response.rem_deadline,
+                                        pass_user_data=True)
                        ],
 
                 # TYPING_CHOICE: [MessageHandler(Filters.text,

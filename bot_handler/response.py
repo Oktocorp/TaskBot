@@ -14,7 +14,7 @@ CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
 buttons = ReplyKeyboardMarkup([["Закрыть"],
                                ["Взять"],
                                ["Установить/изменить срок"],
-                               ["Изменить"],
+                               ["Удалить срок"],
                                ["Отмена"]],
                               selective=True, one_time_keyboard=True)
 
@@ -328,16 +328,27 @@ def rem_deadline(update, context):
     # remove leading command
     msg_text = _rem_command(update.message.text)
     try:
-        task_id = int(_get_task_id(msg_text))
+        user_data = context.user_data
+        if 'task id' in user_data:
+            task_id = user_data['task id']
+        else:
+            task_id = int(_get_task_id(msg_text))
         success = handler.set_deadline(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
     if not success:
         update.message.reply_text('Вы не можете отменить срок выполнения '
-                                  'этого задания.')
+                                  'этого задания.',
+                                  reply_markup=ReplyKeyboardRemove())
     else:
-        update.message.reply_text('Срок выполнения отменен.')
+        update.message.reply_text('Срок выполнения отменен.',
+                                  reply_markup=ReplyKeyboardRemove())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    return ConversationHandler.END
 
 
 def done(update, context):
