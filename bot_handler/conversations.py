@@ -18,8 +18,12 @@ act_handler = ConversationHandler(
                     MessageHandler(Filters.regex('^Установить/изменить срок$'),
                                    response.update_deadline,
                                    pass_user_data=True),
-                    # MessageHandler(Filters.regex('^Изменить$'),
-                    #              response.act_change_task)
+                    MessageHandler(Filters.regex('^Удалить срок$'),
+                                   response.rem_deadline,
+                                   pass_user_data=True),
+                    MessageHandler(Filters.regex('^Отказаться$'),
+                                   response.ret_task,
+                                   pass_user_data=True)
                     ],
 
         # _TYPING_CHOICE: [MessageHandler(Filters.text,
