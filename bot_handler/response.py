@@ -13,7 +13,7 @@ _ERR_MSG = 'Извините, произошла ошибка'
 CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
 buttons = ReplyKeyboardMarkup([["Закрыть"],
                                ["Взять"],
-                               ["Установить срок"],
+                               ["Установить/изменить срок"],
                                ["Изменить"],
                                ["Отмена"]],
                               selective=True, one_time_keyboard=True)
@@ -389,6 +389,10 @@ def act_close_task(update, context):
         update.message.reply_text('Задание успешно закрыто.',
                                   disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
     return ConversationHandler.END
 
 
@@ -409,19 +413,45 @@ def act_take_task(update, context):
     else:
         update.message.reply_text('Задание захвачено.',
                                   reply_markup=ReplyKeyboardRemove())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
     return ConversationHandler.END
 
 
-def act_change_task(update, context):
-    update.message.reply_text('Опишите новую задачу ответом на это сообщение')
-
-    return TYPING_CHOICE
 
 
-def regular_choice(update, context):
-    text = update.message.text
-    context.user_data['choice'] = text
-    update.message.reply_text(
-        'Your {}? Yes, I would love to hear about that!'.format(text.lower()))
+# def regular_choice(update, context):
+#     text = update.message.text
+#     context.user_data['choice'] = text
+#
+#     return TYPING_REPLY
 
-    return TYPING_REPLY
+
+def act_update_deadline(update, context):
+    """Updates task deadline"""
+    handler = db_connector.DataBaseConnector()
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    # remove leading command
+    try:
+        task_id = context.user_data['task id']
+        due_date = datetime(2019, 5, 30, 12, 30, 0)
+        due_date = _DEF_TZ.localize(due_date)
+        success = handler.set_deadline(task_id, chat_id, user_id, due_date)
+    except (ValueError, ConnectionError):
+        update.message.reply_text(_ERR_MSG)
+        return
+    if not success:
+        update.message.reply_text('Вы не можете установить срок этому заданию.',
+                                  disable_notification=True)
+    else:
+        update.message.reply_text(f'Пожалуйста, выберите дату для задания {task_id}',
+                                  reply_markup=calendar_keyboard.create_calendar())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    return ConversationHandler.END
+

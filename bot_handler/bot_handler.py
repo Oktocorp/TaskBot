@@ -42,12 +42,13 @@ class BotHandler:
                            RegexHandler('^Взять$',
                                         response.act_take_task,
                                         pass_user_data=True),
-                           # RegexHandler('^Установить срок$',
-                           #              response.custom_choice),
+                           RegexHandler('^Установить/изменить срок$',
+                                        response.act_update_deadline,
+                                        pass_user_data=True),
                            # RegexHandler('^Изменить$',
                            #              response.act_change_task)
                        ],
-                # 
+
                 # TYPING_CHOICE: [MessageHandler(Filters.text,
                 #                                response.regular_choice,
                 #                                pass_user_data=True),
