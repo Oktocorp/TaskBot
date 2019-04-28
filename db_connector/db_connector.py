@@ -242,3 +242,28 @@ class DataBaseConnector:
         except (ValueError, ConnectionError):  # Pass the exception up
             raise
         return task
+
+    def set_marked_status(self, task_id, chat_id, user_id, marked):
+        """
+        Update marked status ([ ! ])
+        :return Success indicator
+        :raises ConnectionError: if DB exception occurred
+        :raises ValueError: if couldn't update task in the DB
+        """
+        sql_str = '''
+        UPDATE tasks
+        SET marked = (%s)
+        WHERE id = (%s)  AND chat_id = (%s)
+        AND (workers IS NULL OR creator_id = (%s) OR (%s) = ANY(workers))
+        AND closed = (%s)
+        '''
+        sql_val = (marked, task_id, chat_id, user_id, user_id, False)
+
+        try:
+            update_res = self._commit(sql_str, sql_val)
+        except (ValueError, ConnectionError):  # Pass the exception up
+            raise
+
+        if update_res is None or update_res == -1 or update_res == 0:
+            return False
+        return True
