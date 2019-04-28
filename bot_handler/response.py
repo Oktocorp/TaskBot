@@ -8,6 +8,8 @@ from telegram_calendar_keyboard import calendar_keyboard
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ForceReply
 from telegram.ext import ConversationHandler
 
+from telegram import ReplyMarkup
+
 _DEF_TZ = pytz.timezone('Europe/Moscow')
 _ERR_MSG = 'Извините, произошла ошибка'
 CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
@@ -15,6 +17,7 @@ buttons = ReplyKeyboardMarkup([["Закрыть"],
                                ["Взять"],
                                ["Установить/изменить срок"],
                                ["Удалить срок"],
+                               ["Отказаться"],
                                ["Отмена"]],
                               selective=True, one_time_keyboard=True)
 
@@ -22,6 +25,16 @@ buttons = ReplyKeyboardMarkup([["Закрыть"],
 #                   ['Number of siblings', 'Something else...'],
 #                   ['Done']]
 # markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+
+
+class ForceReplyAndReplyKeyboardRemove(ReplyMarkup):
+
+    def __init__(self, force_reply=True, selective=False, **kwargs):
+        # Required
+        self.remove_keyboard = True
+        self.force_reply = bool(force_reply)
+        # Optionals
+        self.selective = bool(selective)
 
 
 def _rem_command(text):
@@ -132,6 +145,7 @@ def update_deadline(update, context):
     user_data.clear()
     return ConversationHandler.END
 
+
 def inline_calendar_handler(update, context):
     selected, full_date, update.message = calendar_keyboard.process_calendar_selection(update, context)
 
@@ -155,18 +169,21 @@ def inline_calendar_handler(update, context):
     try:
         success = handler.set_deadline(task_id, chat_id, user_id, due_date)
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text('Извините, не получилось.',
+                                  reply_markup=ReplyKeyboardRemove())
         return
     if not success:
         update.message.reply_text('Вы не можете установить срок этому заданию.',
-                                  disable_notification=True)
+                                  disable_notification=True,
+                                  reply_markup=ReplyKeyboardRemove())
     else:
         update.message.reply_text('Срок выполнения установлен.',
-                                  disable_notification=True)
+                                  disable_notification=True,
+                                  reply_markup=ReplyKeyboardRemove())
 
     update.message.reply_text(f'Вы выбрали {full_date.strftime("%d/%m/%Y")}\n' +
                               f'Введите /time \'время дедлайна\'(hh:mm:ss) ' +
-                              f'для задачи {task_id}', reply_markup=ForceReply())
+                              f'для задачи {task_id}', reply_markup=ForceReplyAndReplyKeyboardRemove())
 
 
 def get_time(update, context):
@@ -308,16 +325,27 @@ def ret_task(update, context):
     user_id = update.message.from_user.id
     msg_text = _rem_command(update.message.text)
     try:
-        task_id = int(_get_task_id(msg_text))
+        user_data = context.user_data
+        if 'task id' in user_data:
+            task_id = user_data['task id']
+        else:
+            task_id = int(_get_task_id(msg_text))
         success = handler.rem_worker(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
 
     if not success:
-        update.message.reply_text('Вы не можете вернуть это задание.')
+        update.message.reply_text('Вы не можете вернуть это задание.',
+                                  reply_markup=ReplyKeyboardRemove())
     else:
-        update.message.reply_text('Вы отказались от задания.')
+        update.message.reply_text('Вы отказались от задания.',
+                                  reply_markup=ReplyKeyboardRemove())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    return ConversationHandler.END
 
 
 def rem_deadline(update, context):
