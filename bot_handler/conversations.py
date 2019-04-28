@@ -24,17 +24,7 @@ act_handler = ConversationHandler(
                     MessageHandler(Filters.regex('^Отказаться$'),
                                    response.ret_task,
                                    pass_user_data=True)
-                    ],
-
-        # _TYPING_CHOICE: [MessageHandler(Filters.text,
-        #                                response.regular_choice,
-        #                                pass_user_data=True),
-        #             ],
-        #
-        # _TYPING_REPLY: [MessageHandler(Filters.text,
-        #                               response.received_information,
-        #                               pass_user_data=True),
-        #            ],
+                    ]
     },
     fallbacks=[MessageHandler(Filters.regex('^Отмена$'), response.done,
                               pass_user_data=True)]

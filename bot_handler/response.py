@@ -2,29 +2,15 @@ import pytz
 import db_connector
 import re
 from datetime import datetime
-from telegram import ParseMode
+from telegram import (ParseMode, ReplyKeyboardMarkup,
+                      ReplyKeyboardRemove, ReplyMarkup)
 import html
 from telegram_calendar_keyboard import calendar_keyboard
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ForceReply
 from telegram.ext import ConversationHandler
-
-from telegram import ReplyMarkup
 
 _DEF_TZ = pytz.timezone('Europe/Moscow')
 _ERR_MSG = 'Извините, произошла ошибка'
 CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
-# markup = ReplyKeyboardMarkup([["Закрыть"],
-#                                ["Взять"],
-#                                ["Установить/изменить срок"],
-#                                ["Удалить срок"],
-#                                ["Отказаться"],
-#                                ["Отмена"]],
-#                               selective=True, one_time_keyboard=True, resize_keyboard=False)
-
-# reply_keyboard = [['Age', 'Favourite colour'],
-#                   ['Number of siblings', 'Something else...'],
-#                   ['Done']]
-# markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
 
 class ForceReplyAndReplyKeyboardRemove(ReplyMarkup):
@@ -389,46 +375,6 @@ def done(update, context):
     return ConversationHandler.END
 
 
-# def custom_choice(update, context):
-#     update.message.reply_text('Alright, please send me the category first, '
-#                               'for example "Most impressive skill"')
-#
-#     return TYPING_CHOICE
-#
-#
-# def received_information(update, context):
-#     user_data = context.user_data
-#     text = update.message.text
-#     category = user_data['choice']
-#     user_data[category] = text
-#     del user_data['choice']
-#
-#     update.message.reply_text("Neat! Just so you know, this is what you already told me:"
-#                               "{}"
-#                               "You can tell me more, or change your opinion on something.".format(
-#                                   facts_to_str(user_data)), reply_markup=markup)
-#
-#     return CHOOSING
-#
-#
-# def facts_to_str(user_data):
-#     facts = list()
-#
-#     for key, value in user_data.items():
-#         facts.append('{} - {}'.format(key, value))
-#
-#     return "\n".join(facts).join(['\n', '\n'])
-#
-#
-# def regular_choice(update, context):
-#     text = update.message.text
-#     context.user_data['choice'] = text
-#     update.message.reply_text(
-#         'Your {}? Yes, I would love to hear about that!'.format(text.lower()))
-#
-#     return TYPING_REPLY
-
-
 def act_task(update, context):
     handler = db_connector.DataBaseConnector()
     msg_text = _rem_command(update.message.text)
@@ -461,12 +407,3 @@ def act_task(update, context):
         return
 
     return CHOOSING
-
-
-# def regular_choice(update, context):
-#     text = update.message.text
-#     context.user_data['choice'] = text
-#
-#     return TYPING_REPLY
-
-
