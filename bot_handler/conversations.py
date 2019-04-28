@@ -4,7 +4,7 @@ from bot_handler import response
 _CHOOSING, _TYPING_REPLY, _TYPING_CHOICE = range(3)
 
 act_handler = ConversationHandler(
-    entry_points=[MessageHandler(Filters.regex('^(/act_[\d]+)$'),
+    entry_points=[MessageHandler(Filters.regex('^(/act_[\d]+)'),
                                  response.act_task)],
 
     states=
