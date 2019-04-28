@@ -380,11 +380,12 @@ def rem_deadline(update, context):
 
 
 def done(update, context):
-    user_data = context.user_data
-    if 'task id' in user_data:
-        del user_data['task id']
-    user_data.clear()
-    # ReplyKeyboardRemove()
+    """Finish act conversation"""
+    msg = update.message.reply_text('Принято', disable_notification=True,
+                                    reply_markup=ReplyKeyboardRemove())
+    update.message.bot.delete_message(update.message.chat.id,
+                                      msg.message_id)
+    context.user_data.clear()
     return ConversationHandler.END
 
 
