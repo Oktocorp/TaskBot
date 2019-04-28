@@ -19,6 +19,8 @@ class BotHandler:
         self.dp.add_handler(CommandHandler('add', response.add_task))
         self.dp.add_handler(CommandHandler('close', response.close_task))
         self.dp.add_handler(CommandHandler('dl', response.update_deadline))
+        self.dp.add_handler(CallbackQueryHandler(response.inline_calendar_handler, pass_user_data=True))
+        self.dp.add_handler(CommandHandler('time', response.get_time))
         self.dp.add_handler(CommandHandler('help', response.help_msg))
         self.dp.add_handler(CommandHandler('list', response.get_list))
         self.dp.add_handler(CommandHandler('return', response.ret_task))
