@@ -387,6 +387,10 @@ def act_task(update, context):
         buttons = []
         if user_id == task_info['creator_id']:
             buttons += [["Закрыть"]]
+            if task_info['marked']:
+                buttons += [["Снять отметку"]]
+            else:
+                buttons += [["Отметить"]]
             if task_info['deadline']:
                 buttons += [["Удалить срок"]]
             else:
@@ -407,3 +411,46 @@ def act_task(update, context):
         return
 
     return CHOOSING
+
+
+def set_marked_status(update, context):
+    handler = db_connector.DataBaseConnector()
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    # remove leading command
+    msg_text = _rem_command(update.message.text)
+    try:
+        user_data = context.user_data
+        if 'task id' in user_data:
+            task_id = user_data['task id']
+        else:
+            task_id = int(_get_task_id(msg_text))
+        marked = not handler.task_info(task_id, chat_id)['marked']
+        success = handler.set_marked_status(task_id, chat_id, user_id, marked)
+    except (ValueError, ConnectionError):
+        update.message.reply_text(_ERR_MSG)
+        return
+    if not success:
+        if marked:
+            update.message.reply_text('Вы не можете отметить это задание.',
+                                      disable_notification=True,
+                                      reply_markup=ReplyKeyboardRemove())
+        else:
+            update.message.reply_text('Вы не можете снять отметку у этого задания.',
+                                      disable_notification=True,
+                                      reply_markup=ReplyKeyboardRemove())
+    else:
+        if marked:
+            update.message.reply_text('Отметка успешно добавлена.',
+                                      disable_notification=True,
+                                      reply_markup=ReplyKeyboardRemove())
+        else:
+            update.message.reply_text('Отметка успешно удалена.',
+                                      disable_notification=True,
+                                      reply_markup=ReplyKeyboardRemove())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    return ConversationHandler.END
+

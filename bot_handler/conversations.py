@@ -23,6 +23,9 @@ act_handler = ConversationHandler(
                                    pass_user_data=True),
                     MessageHandler(Filters.regex('^Отказаться$'),
                                    response.ret_task,
+                                   pass_user_data=True),
+                    MessageHandler(Filters.regex('^Отметить|Снять отметку$'),
+                                   response.set_marked_status,
                                    pass_user_data=True)
                     ]
     },

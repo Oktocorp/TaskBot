@@ -26,6 +26,7 @@ class BotHandler:
         self.dp.add_handler(CommandHandler('start', response.start))
         self.dp.add_handler(CommandHandler('take', response.take_task))
         self.dp.add_handler(CommandHandler('no_dl', response.rem_deadline))
+        self.dp.add_handler(CommandHandler('mark', response.set_marked_status))
         self.dp.add_handler(conversations.act_handler)
 
         # Log all errors
