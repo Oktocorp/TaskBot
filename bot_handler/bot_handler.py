@@ -1,9 +1,8 @@
 import os
 import locale
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
-
 import logger
-from . import response
+from bot_handler import conversations, response
 
 
 class BotHandler:
@@ -27,6 +26,7 @@ class BotHandler:
         self.dp.add_handler(CommandHandler('start', response.start))
         self.dp.add_handler(CommandHandler('take', response.take_task))
         self.dp.add_handler(CommandHandler('no_dl', response.rem_deadline))
+        self.dp.add_handler(conversations.act_handler)
 
         # Log all errors
         self.log = logger.get_logger(__name__)

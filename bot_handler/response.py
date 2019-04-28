@@ -2,15 +2,25 @@ import pytz
 import db_connector
 import re
 from datetime import datetime
-from telegram import ParseMode
+from telegram import (ParseMode, ReplyKeyboardMarkup,
+                      ReplyKeyboardRemove, ReplyMarkup)
 import html
 from telegram_calendar_keyboard import calendar_keyboard
-from telegram import ReplyKeyboardRemove
-from telegram import ForceReply
-
+from telegram.ext import ConversationHandler
 
 _DEF_TZ = pytz.timezone('Europe/Moscow')
 _ERR_MSG = 'Извините, произошла ошибка'
+CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
+
+
+class ForceReplyAndReplyKeyboardRemove(ReplyMarkup):
+
+    def __init__(self, force_reply=True, selective=False, **kwargs):
+        # Required
+        self.remove_keyboard = True
+        self.force_reply = bool(force_reply)
+        # Optionals
+        self.selective = bool(selective)
 
 
 def _rem_command(text):
@@ -64,17 +74,28 @@ def close_task(update, context):
     # remove leading command
     msg_text = _rem_command(update.message.text)
     try:
-        task_id = int(_get_task_id(msg_text))
+        user_data = context.user_data
+        if 'task id' in user_data:
+            task_id = user_data['task id']
+        else:
+            task_id = int(_get_task_id(msg_text))
         success = handler.close_task(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
     if not success:
         update.message.reply_text('Вы не можете закрыть это задание.',
-                                  disable_notification=True)
+                                  disable_notification=True,
+                                  reply_markup=ReplyKeyboardRemove())
     else:
         update.message.reply_text('Задание успешно закрыто.',
-                                  disable_notification=True)
+                                  disable_notification=True,
+                                  reply_markup=ReplyKeyboardRemove())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    return ConversationHandler.END
 
 
 def update_deadline(update, context):
@@ -86,7 +107,11 @@ def update_deadline(update, context):
     msg_text = _rem_command(update.message.text)
 
     try:
-        task_id = int(_get_task_id(msg_text))
+        user_data = context.user_data
+        if 'task id' in user_data:
+            task_id = user_data['task id']
+        else:
+            task_id = int(_get_task_id(msg_text))
         due_date = datetime(2019, 5, 30, 12, 30, 0)
         due_date = _DEF_TZ.localize(due_date)
         success = handler.set_deadline(task_id, chat_id, user_id, due_date)
@@ -95,10 +120,17 @@ def update_deadline(update, context):
         return
     if not success:
         update.message.reply_text('Вы не можете установить срок этому заданию.',
-                                  disable_notification=True)
+                                  disable_notification=True,
+                                  reply_markup=ReplyKeyboardRemove())
     else:
         update.message.reply_text(f'Пожалуйста, выберите дату для задания {task_id}',
                                   reply_markup=calendar_keyboard.create_calendar())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    return ConversationHandler.END
+
 
 def inline_calendar_handler(update, context):
     selected, full_date, update.message = calendar_keyboard.process_calendar_selection(update, context)
@@ -123,18 +155,21 @@ def inline_calendar_handler(update, context):
     try:
         success = handler.set_deadline(task_id, chat_id, user_id, due_date)
     except (ValueError, ConnectionError):
-        update.message.reply_text('Извините, не получилось.')
+        update.message.reply_text('Извините, не получилось.',
+                                  reply_markup=ReplyKeyboardRemove())
         return
     if not success:
         update.message.reply_text('Вы не можете установить срок этому заданию.',
-                                  disable_notification=True)
+                                  disable_notification=True,
+                                  reply_markup=ReplyKeyboardRemove())
     else:
         update.message.reply_text('Срок выполнения установлен.',
-                                  disable_notification=True)
+                                  disable_notification=True,
+                                  reply_markup=ReplyKeyboardRemove())
 
     update.message.reply_text(f'Вы выбрали {full_date.strftime("%d/%m/%Y")}\n' +
                               f'Введите /time \'время дедлайна\'(hh:mm:ss) ' +
-                              f'для задачи {task_id}', reply_markup=ForceReply())
+                              f'для задачи {task_id}', reply_markup=ForceReplyAndReplyKeyboardRemove())
 
 
 def get_time(update, context):
@@ -246,16 +281,27 @@ def take_task(update, context):
     user_id = update.message.from_user.id
     msg_text = _rem_command(update.message.text)
     try:
-        task_id = int(_get_task_id(msg_text))
+        user_data = context.user_data
+        if 'task id' in user_data:
+            task_id = user_data['task id']
+        else:
+            task_id = int(_get_task_id(msg_text))
         success = handler.assign_task(task_id, chat_id, user_id, [user_id])
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
 
     if not success:
-        update.message.reply_text('Вы не можете взять это задание.')
+        update.message.reply_text('Вы не можете взять это задание.',
+                                  reply_markup=ReplyKeyboardRemove())
     else:
-        update.message.reply_text('Задание захвачено.')
+        update.message.reply_text('Задание захвачено.',
+                                  reply_markup=ReplyKeyboardRemove())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    return ConversationHandler.END
 
 
 def ret_task(update, context):
@@ -265,16 +311,27 @@ def ret_task(update, context):
     user_id = update.message.from_user.id
     msg_text = _rem_command(update.message.text)
     try:
-        task_id = int(_get_task_id(msg_text))
+        user_data = context.user_data
+        if 'task id' in user_data:
+            task_id = user_data['task id']
+        else:
+            task_id = int(_get_task_id(msg_text))
         success = handler.rem_worker(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
 
     if not success:
-        update.message.reply_text('Вы не можете вернуть это задание.')
+        update.message.reply_text('Вы не можете вернуть это задание.',
+                                  reply_markup=ReplyKeyboardRemove())
     else:
-        update.message.reply_text('Вы отказались от задания.')
+        update.message.reply_text('Вы отказались от задания.',
+                                  reply_markup=ReplyKeyboardRemove())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    return ConversationHandler.END
 
 
 def rem_deadline(update, context):
@@ -285,13 +342,68 @@ def rem_deadline(update, context):
     # remove leading command
     msg_text = _rem_command(update.message.text)
     try:
-        task_id = int(_get_task_id(msg_text))
+        user_data = context.user_data
+        if 'task id' in user_data:
+            task_id = user_data['task id']
+        else:
+            task_id = int(_get_task_id(msg_text))
         success = handler.set_deadline(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
     if not success:
         update.message.reply_text('Вы не можете отменить срок выполнения '
-                                  'этого задания.')
+                                  'этого задания.',
+                                  reply_markup=ReplyKeyboardRemove())
     else:
-        update.message.reply_text('Срок выполнения отменен.')
+        update.message.reply_text('Срок выполнения отменен.',
+                                  reply_markup=ReplyKeyboardRemove())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    return ConversationHandler.END
+
+
+def done(update, context):
+    """Finish act conversation"""
+    msg = update.message.reply_text('Принято', disable_notification=True,
+                                    reply_markup=ReplyKeyboardRemove())
+    update.message.bot.delete_message(update.message.chat.id,
+                                      msg.message_id)
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
+def act_task(update, context):
+    handler = db_connector.DataBaseConnector()
+    msg_text = _rem_command(update.message.text)
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    try:
+        task_id = int(_get_task_id(msg_text))
+        context.user_data['task id'] = task_id
+        task_info = handler.task_info(task_id, chat_id)
+        buttons = []
+        if user_id == task_info['creator_id']:
+            buttons += [["Закрыть"]]
+            if task_info['deadline']:
+                buttons += [["Удалить срок"]]
+            else:
+                buttons += [["Установить/изменить срок"]]
+        if user_id in task_info['workers']:
+            buttons += [["Отказаться"]]
+        else:
+            buttons += [["Взять"]]
+        buttons += [["Отмена"]]
+        markup = ReplyKeyboardMarkup(buttons,
+                                     selective=True,
+                                     one_time_keyboard=True,
+                                     resize_keyboard=False)
+        update.message.reply_text("Выберите действие с задачей",
+                                  reply_markup=markup)
+    except (ValueError, ConnectionError):
+        update.message.reply_text(_ERR_MSG)
+        return
+
+    return CHOOSING
