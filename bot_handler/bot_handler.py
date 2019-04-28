@@ -37,13 +37,13 @@ class BotHandler:
             states=
             {
                 CHOOSING: [RegexHandler('^Закрыть$',
-                                        response.act_close_task,
+                                        response.close_task,
                                         pass_user_data=True),
                            RegexHandler('^Взять$',
-                                        response.act_take_task,
+                                        response.take_task,
                                         pass_user_data=True),
                            RegexHandler('^Установить/изменить срок$',
-                                        response.act_update_deadline,
+                                        response.update_deadline,
                                         pass_user_data=True),
                            # RegexHandler('^Изменить$',
                            #              response.act_change_task)
