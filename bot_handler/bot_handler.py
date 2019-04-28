@@ -47,6 +47,9 @@ class BotHandler:
                                         pass_user_data=True),
                            RegexHandler('^Удалить срок$',
                                         response.rem_deadline,
+                                        pass_user_data=True),
+                           RegexHandler('^Отказаться$',
+                                        response.ret_task,
                                         pass_user_data=True)
                        ],
 

@@ -17,6 +17,7 @@ buttons = ReplyKeyboardMarkup([["Закрыть"],
                                ["Взять"],
                                ["Установить/изменить срок"],
                                ["Удалить срок"],
+                               ["Отказаться"],
                                ["Отмена"]],
                               selective=True, one_time_keyboard=True)
 
@@ -324,16 +325,27 @@ def ret_task(update, context):
     user_id = update.message.from_user.id
     msg_text = _rem_command(update.message.text)
     try:
-        task_id = int(_get_task_id(msg_text))
+        user_data = context.user_data
+        if 'task id' in user_data:
+            task_id = user_data['task id']
+        else:
+            task_id = int(_get_task_id(msg_text))
         success = handler.rem_worker(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
 
     if not success:
-        update.message.reply_text('Вы не можете вернуть это задание.')
+        update.message.reply_text('Вы не можете вернуть это задание.',
+                                  reply_markup=ReplyKeyboardRemove())
     else:
-        update.message.reply_text('Вы отказались от задания.')
+        update.message.reply_text('Вы отказались от задания.',
+                                  reply_markup=ReplyKeyboardRemove())
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    return ConversationHandler.END
 
 
 def rem_deadline(update, context):
