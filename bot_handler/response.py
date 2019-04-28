@@ -13,13 +13,13 @@ from telegram import ReplyMarkup
 _DEF_TZ = pytz.timezone('Europe/Moscow')
 _ERR_MSG = 'Извините, произошла ошибка'
 CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
-buttons = ReplyKeyboardMarkup([["Закрыть"],
-                               ["Взять"],
-                               ["Установить/изменить срок"],
-                               ["Удалить срок"],
-                               ["Отказаться"],
-                               ["Отмена"]],
-                              selective=True, one_time_keyboard=True)
+# markup = ReplyKeyboardMarkup([["Закрыть"],
+#                                ["Взять"],
+#                                ["Установить/изменить срок"],
+#                                ["Удалить срок"],
+#                                ["Отказаться"],
+#                                ["Отмена"]],
+#                               selective=True, one_time_keyboard=True, resize_keyboard=False)
 
 # reply_keyboard = [['Age', 'Favourite colour'],
 #                   ['Number of siblings', 'Something else...'],
@@ -429,12 +429,32 @@ def done(update, context):
 
 
 def act_task(update, context):
+    handler = db_connector.DataBaseConnector()
     msg_text = _rem_command(update.message.text)
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
     try:
         task_id = int(_get_task_id(msg_text))
         context.user_data['task id'] = task_id
+        task_info = handler.task_info(task_id, chat_id)
+        buttons = []
+        if user_id == task_info['creator_id']:
+            buttons += [["Закрыть"]]
+            if task_info['deadline']:
+                buttons += [["Удалить срок"]]
+            else:
+                buttons += [["Установить/изменить срок"]]
+        if user_id in task_info['workers']:
+            buttons += [["Отказаться"]]
+        else:
+            buttons += [["Взять"]]
+        buttons += [["Отмена"]]
+        markup = ReplyKeyboardMarkup(buttons,
+                                     selective=True,
+                                     one_time_keyboard=True,
+                                     resize_keyboard=False)
         update.message.reply_text("Выберите действие с задачей",
-                                  reply_markup=buttons)
+                                  reply_markup=markup)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
