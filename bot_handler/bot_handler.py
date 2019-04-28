@@ -1,9 +1,8 @@
 import os
 import locale
-from telegram.ext import (Updater, CommandHandler, RegexHandler,
-    CallbackQueryHandler, ConversationHandler, MessageHandler, Filters)
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 import logger
-from . import response
+from bot_handler import conversations, response
 
 
 class BotHandler:
@@ -27,40 +26,7 @@ class BotHandler:
         self.dp.add_handler(CommandHandler('start', response.start))
         self.dp.add_handler(CommandHandler('take', response.take_task))
         self.dp.add_handler(CommandHandler('no_dl', response.rem_deadline))
-        # self.dp.add_handler(CommandHandler('act', response.act_task))
-
-        CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
-
-        self.dp.add_handler(ConversationHandler(
-            entry_points=[CommandHandler('act', response.act_task)],
-
-            states=
-            {
-                CHOOSING: [RegexHandler('^Закрыть$',
-                                        response.close_task,
-                                        pass_user_data=True),
-                           RegexHandler('^Взять$',
-                                        response.take_task,
-                                        pass_user_data=True),
-                           RegexHandler('^Установить/изменить срок$',
-                                        response.update_deadline,
-                                        pass_user_data=True),
-                           # RegexHandler('^Изменить$',
-                           #              response.act_change_task)
-                       ],
-
-                # TYPING_CHOICE: [MessageHandler(Filters.text,
-                #                                response.regular_choice,
-                #                                pass_user_data=True),
-                #             ],
-                #
-                # TYPING_REPLY: [MessageHandler(Filters.text,
-                #                               response.received_information,
-                #                               pass_user_data=True),
-                #            ],
-            },
-            fallbacks=[RegexHandler('^Отмена$', response.done, pass_user_data=True)]
-        ))
+        self.dp.add_handler(conversations.act_handler)
 
         # Log all errors
         self.log = logger.get_logger(__name__)
