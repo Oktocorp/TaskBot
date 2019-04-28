@@ -6,12 +6,22 @@ from telegram import ParseMode
 import html
 from telegram_calendar_keyboard import calendar_keyboard
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import MessageHandler, Filters, Updater
-import os
-
+from telegram.ext import ConversationHandler
 
 _DEF_TZ = pytz.timezone('Europe/Moscow')
 _ERR_MSG = 'Извините, произошла ошибка'
+CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
+buttons = ReplyKeyboardMarkup([["Закрыть"],
+                               ["Взять"],
+                               ["Установить срок"],
+                               ["Изменить"],
+                               ["Отмена"]],
+                              selective=True, one_time_keyboard=True)
+
+# reply_keyboard = [['Age', 'Favourite colour'],
+#                   ['Number of siblings', 'Something else...'],
+#                   ['Done']]
+# markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
 
 def _rem_command(text):
@@ -224,46 +234,120 @@ def rem_deadline(update, context):
         update.message.reply_text('Срок выполнения отменен.')
 
 
-def ask_choice(update, context):
-    choice = update.message.text
-    context.user_data['choice'] = choice
-    update.message.reply_text(
-        'Your {}? Yes, I would love to hear about that!'.format(choice.lower()))
-    print(context.user_data)
+def done(update, context):
+    user_data = context.user_data
+    if 'task id' in user_data:
+        del user_data['task id']
+    user_data.clear()
+    ReplyKeyboardRemove()
+    return ConversationHandler.END
 
-# TODO: do something with reply
+
+# def custom_choice(update, context):
+#     update.message.reply_text('Alright, please send me the category first, '
+#                               'for example "Most impressive skill"')
+#
+#     return TYPING_CHOICE
+#
+#
+# def received_information(update, context):
+#     user_data = context.user_data
+#     text = update.message.text
+#     category = user_data['choice']
+#     user_data[category] = text
+#     del user_data['choice']
+#
+#     update.message.reply_text("Neat! Just so you know, this is what you already told me:"
+#                               "{}"
+#                               "You can tell me more, or change your opinion on something.".format(
+#                                   facts_to_str(user_data)), reply_markup=markup)
+#
+#     return CHOOSING
+#
+#
+# def facts_to_str(user_data):
+#     facts = list()
+#
+#     for key, value in user_data.items():
+#         facts.append('{} - {}'.format(key, value))
+#
+#     return "\n".join(facts).join(['\n', '\n'])
+#
+#
+# def regular_choice(update, context):
+#     text = update.message.text
+#     context.user_data['choice'] = text
+#     update.message.reply_text(
+#         'Your {}? Yes, I would love to hear about that!'.format(text.lower()))
+#
+#     return TYPING_REPLY
+
+
 def act_task(update, context):
-    handler = db_connector.DataBaseConnector()
-    chat_id = update.message.chat.id
-    user_id = update.message.from_user.id
     msg_text = _rem_command(update.message.text)
     try:
         task_id = int(_get_task_id(msg_text))
-        buttons = ReplyKeyboardMarkup([["Закрыть"], ["Взять"]], selective=True, one_time_keyboard=True)
+        context.user_data['task id'] = task_id
         update.message.reply_text("Выберите действие с задачей",
-                                  disable_notification=True, reply_markup=buttons)
-
-        token = os.environ['BOT_TOKEN']
-        updater = Updater(token, use_context=True)
-
-        dp = updater.dispatcher
-        dp.add_handler(MessageHandler(Filters.text, ask_choice, pass_user_data=True))
-        # print(context.user_data)
-        choice = context.user_data['choice']
-        if choice == "Закрыть":
-            success = handler.close_task(task_id, chat_id, user_id)
-            if not success:
-                update.message.reply_text('Вы не можете закрыть это задание.',
-                                          disable_notification=True, reply_markup=ReplyKeyboardRemove())
-            else:
-                update.message.reply_text('Задание успешно закрыто.',
-                                          disable_notification=True, reply_markup=ReplyKeyboardRemove())
-        elif choice == "Взять":
-            success = handler.assign_task(task_id, chat_id, user_id, [user_id])
-            if not success:
-                update.message.reply_text('Вы не можете взять это задание.', reply_markup=ReplyKeyboardRemove())
-            else:
-                update.message.reply_text('Задание захвачено.', reply_markup=ReplyKeyboardRemove())
+                                  reply_markup=buttons)
     except (ValueError, ConnectionError):
-            update.message.reply_text(_ERR_MSG)
+        update.message.reply_text(_ERR_MSG)
+        return
 
+    return CHOOSING
+
+
+def act_close_task(update, context):
+    handler = db_connector.DataBaseConnector()
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    try:
+        task_id = context.user_data['task id']
+        success = handler.close_task(task_id, chat_id, user_id)
+    except (ValueError, ConnectionError):
+        update.message.reply_text(_ERR_MSG)
+        return
+    if not success:
+        update.message.reply_text('Вы не можете закрыть это задание.',
+                                  disable_notification=True,
+                                  reply_markup=ReplyKeyboardRemove())
+    else:
+        update.message.reply_text('Задание успешно закрыто.',
+                                  disable_notification=True,
+                                  reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
+
+
+def act_take_task(update, context):
+    handler = db_connector.DataBaseConnector()
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    try:
+        task_id = context.user_data['task id']
+        success = handler.assign_task(task_id, chat_id, user_id, [user_id])
+    except (ValueError, ConnectionError):
+        update.message.reply_text(_ERR_MSG)
+        return
+
+    if not success:
+        update.message.reply_text('Вы не можете взять это задание.',
+                                  reply_markup=ReplyKeyboardRemove())
+    else:
+        update.message.reply_text('Задание захвачено.',
+                                  reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
+
+
+def act_change_task(update, context):
+    update.message.reply_text('Опишите новую задачу ответом на это сообщение')
+
+    return TYPING_CHOICE
+
+
+def regular_choice(update, context):
+    text = update.message.text
+    context.user_data['choice'] = text
+    update.message.reply_text(
+        'Your {}? Yes, I would love to hear about that!'.format(text.lower()))
+
+    return TYPING_REPLY
