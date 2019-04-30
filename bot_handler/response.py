@@ -102,24 +102,28 @@ def update_deadline(update, context):
         update.message.reply_text(_ERR_MSG)
         return
     if not success:
-        update.message.reply_text('Вы не можете установить срок этому заданию.',
+        update.message.reply_text('Вы не можете установить ' +
+                                  'срок этому заданию.',
                                   disable_notification=True)
     else:
-        update.message.reply_text(f'Пожалуйста, выберите дату для задания {task_id}',
-                                  reply_markup=calendar_keyboard.create_calendar())
+        update.message.reply_text(f'Пожалуйста, выберите дату для задания ' +
+                                  f'{task_id}',
+                        reply_markup=calendar_keyboard.create_calendar())
 
 def inline_calendar_handler(update, context):
     selected, full_date, update.message = calendar_keyboard.process_calendar_selection(update, context)
 
     if selected:
-        update.message.reply_text(f'Вы выбрали {full_date.strftime("%d/%m/%Y")}\n',
+        update.message.reply_text(f'Вы выбрали '+
+                                  f'{full_date.strftime("%d/%m/%Y")}\n',
                                   reply_markup=ReplyKeyboardRemove())
 
         handler = db_connector.DataBaseConnector()
         chat_id = update.message.chat.id
-        user_id = update.callback_query.from_user.id #update._effective_user.id #need to be fixed
+        user_id = update.callback_query.from_user.id
         
-        task_id = re.sub('Пожалуйста, выберите дату для задания ', '', update.message.text, 1)
+        task_id = re.sub('Пожалуйста, выберите дату для задания ',
+                         '', update.message.text, 1)
 
         year = int(full_date.strftime("%Y"))
         month = int(full_date.strftime("%m"))
@@ -133,13 +137,15 @@ def inline_calendar_handler(update, context):
             update.message.reply_text('Извините, не получилось.')
             return
         if not success:
-            update.message.reply_text('Вы не можете установить срок этому заданию.',
+            update.message.reply_text('Вы не можете установить ' +
+                                      'срок этому заданию.',
                                       disable_notification=True)
         else:
             update.message.reply_text('Срок выполнения установлен.',
                                       disable_notification=True)
 
-        update.message.bot.delete_message(update.message.chat.id, update.message.message_id)
+        update.message.bot.delete_message(update.message.chat.id,
+                                          update.message.message_id)
         user_name = update.callback_query.from_user.username
         update.message.bot.sendMessage(update.message.chat.id,
             f'@{user_name} Вы выбрали {full_date.strftime("%d/%m/%Y")}\n' +
@@ -159,24 +165,27 @@ def get_time(update, context):
             #center = time.find(':')
             
             #task_id = int(_get_task_id(msg_text))
-            task_id = int(re.sub('для задачи ', '', reply_msg_text[reply_msg_text.rfind('\n') + 1:], 1))
+            task_id = int(re.sub('для задачи ', '',
+                        reply_msg_text[reply_msg_text.rfind('\n') + 1:], 1))
             task_info = handler.task_info(task_id, chat_id)
         
             year = int(task_info['deadline'].strftime("%Y"))
             month = int(task_info['deadline'].strftime("%m"))
             date = int(task_info['deadline'].strftime("%d"))
 
-            hours = time[:time.find(':')].strip()
-            minutes = time[time.find(':') + 1:].strip()
+            hours = int(time[:time.find(':')].strip())
+            minutes = int(time[time.find(':') + 1:].strip())
             
             try:
-                due_date = datetime(int(year), int(month), int(date), int(hours), int(minutes), 0)
+                due_date = datetime(year, month, date, hours, minutes, 0)
                 due_date = _DEF_TZ.localize(due_date)
                 
-                success = handler.set_deadline(task_id, chat_id, user_id, due_date)
+                success = handler.set_deadline(task_id, chat_id, user_id,
+                                               due_date)
 
                 if not success:
-                    update.message.reply_text('Вы не можете установить время этому заданию.')
+                    update.message.reply_text('Вы не можете установить время ' +
+                                              'этому заданию.')
                 else:
                     update.message.reply_text('Время выполнения установлено.')
 
