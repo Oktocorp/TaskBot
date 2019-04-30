@@ -98,8 +98,10 @@ def update_deadline(update, context):
         due_date = datetime(year, month, date, hours, minutes, 0)
         due_date = _DEF_TZ.localize(due_date)
         success = handler.set_deadline(task_id, chat_id, user_id, due_date)
-    except (ValueError, ConnectionError):
-        update.message.reply_text(_ERR_MSG)
+    except:
+        update.message.reply_text('Вы не можете установить ' +
+                                  'срок этому заданию.',
+                                  disable_notification=True)
         return
     if not success:
         update.message.reply_text('Вы не можете установить ' +
