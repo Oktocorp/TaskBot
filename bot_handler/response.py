@@ -87,7 +87,15 @@ def update_deadline(update, context):
 
     try:
         task_id = int(_get_task_id(msg_text))
-        due_date = datetime(2019, 5, 30, 12, 30, 0)
+        task_info = handler.task_info(task_id, chat_id)
+        
+        year = int(task_info['deadline'].strftime("%Y"))
+        month = int(task_info['deadline'].strftime("%m"))
+        date = int(task_info['deadline'].strftime("%d"))
+        hours = int(task_info['deadline'].strftime("%H"))
+        minutes = int(task_info['deadline'].strftime("%M"))
+        
+        due_date = datetime(year, month, date, hours, minutes, 0)
         due_date = _DEF_TZ.localize(due_date)
         success = handler.set_deadline(task_id, chat_id, user_id, due_date)
     except (ValueError, ConnectionError):
@@ -131,16 +139,11 @@ def inline_calendar_handler(update, context):
             update.message.reply_text('Срок выполнения установлен.',
                                       disable_notification=True)
 
-        '''
-        update.message.reply_text(f'Вы выбрали {full_date.strftime("%d/%m/%Y")}\n' +
-                                  f'Введите /time \'время дедлайна\'(hh:mm:ss) ' +
-                                  f'для задачи {task_id}', reply_markup=ForceReply())
-        '''
         update.message.bot.delete_message(update.message.chat.id, update.message.message_id)
         update.message.bot.sendMessage(update.message.chat.id,
-                                        f'Вы выбрали {full_date.strftime("%d/%m/%Y")}\n' +
-                                        f'Введите время дедлайна(hh:mm)\n'  +
-                                        f'для задачи {task_id}', reply_markup=ForceReply())
+            f'@{user_id} Вы выбрали {full_date.strftime("%d/%m/%Y")}\n' +
+            f'Введите время дедлайна(hh:mm)\n' +
+            f'для задачи {task_id}', reply_markup=ForceReply())
 
 
 def get_time(update, context):
@@ -154,17 +157,17 @@ def get_time(update, context):
             time = re.sub(' *', '', update.message.text, 1)
             #center = time.find(':')
             
-            rows = handler.get_tasks(chat_id)
-            for row in (sorted(rows, key=_row_sort_key)):
-                if row['deadline']:
-                    date = row['deadline'].astimezone(_DEF_TZ).strftime('%d')
-                    month = row['deadline'].astimezone(_DEF_TZ).strftime('%m')
-                    year = row['deadline'].astimezone(_DEF_TZ).strftime('%Y')
-            task_id = reply_msg_text[reply_msg_text.find('для задачи ') + 11:]
+            #task_id = int(_get_task_id(msg_text))
+            task_id = int(re.sub('для задачи ', '', reply_msg_text[reply_msg_text.rfind('\n') + 1:], 1))
+            task_info = handler.task_info(task_id, chat_id)
+        
+            year = int(task_info['deadline'].strftime("%Y"))
+            month = int(task_info['deadline'].strftime("%m"))
+            date = int(task_info['deadline'].strftime("%d"))
 
             hours = time[:time.find(':')].strip()
             minutes = time[time.find(':') + 1:].strip()
-
+            
             try:
                 due_date = datetime(int(year), int(month), int(date), int(hours), int(minutes), 0)
                 due_date = _DEF_TZ.localize(due_date)
