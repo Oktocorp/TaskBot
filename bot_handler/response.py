@@ -140,10 +140,11 @@ def inline_calendar_handler(update, context):
                                       disable_notification=True)
 
         update.message.bot.delete_message(update.message.chat.id, update.message.message_id)
+        user_name = update.callback_query.from_user.username
         update.message.bot.sendMessage(update.message.chat.id,
-            f'@{user_id} Вы выбрали {full_date.strftime("%d/%m/%Y")}\n' +
+            f'@{user_name} Вы выбрали {full_date.strftime("%d/%m/%Y")}\n' +
             f'Введите время дедлайна(hh:mm)\n' +
-            f'для задачи {task_id}', reply_markup=ForceReply())
+            f'для задачи {task_id}', reply_markup=ForceReply(selective=True))
 
 
 def get_time(update, context):
