@@ -13,7 +13,7 @@ _ERR_MSG = 'Извините, произошла ошибка'
 CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
 
 
-class ForceReplyAndReplyKeyboardRemove(ReplyMarkup):
+class ForceReplyAndRemKeyboard(ReplyMarkup):
 
     def __init__(self, force_reply=True, selective=False, **kwargs):
         # Required
@@ -113,15 +113,10 @@ def update_deadline(update, context):
         else:
             task_id = int(_get_task_id(msg_text))
         task_info = handler.task_info(task_id, chat_id)
-        year = int(task_info['deadline'].strftime("%Y"))
-        month = int(task_info['deadline'].strftime("%m"))
-        date = int(task_info['deadline'].strftime("%d"))
-        hours = int(task_info['deadline'].strftime("%H"))
-        minutes = int(task_info['deadline'].strftime("%M"))
 
-        due_date = datetime(year, month, date, hours, minutes, 0)
-        due_date = _DEF_TZ.localize(due_date)
-        success = handler.set_deadline(task_id, chat_id, user_id, due_date)
+        success = (not task_info['closed'] and task_info['chat_id'] == chat_id
+                   and task_info['creator_id'] == user_id
+                   or user_id in task_info['workers'])
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
@@ -141,7 +136,8 @@ def update_deadline(update, context):
 
 
 def inline_calendar_handler(update, context):
-    selected, full_date, update.message = calendar_keyboard.process_calendar_selection(update, context)
+    selected, full_date, update.message = calendar_keyboard.\
+        process_calendar_selection(update, context)
 
     if selected:
         update.message.reply_text(f'Вы выбрали '+
@@ -180,25 +176,23 @@ def inline_calendar_handler(update, context):
         update.message.bot.delete_message(update.message.chat.id,
                                           update.message.message_id)
         user_name = update.callback_query.from_user.username
-        update.message.bot.sendMessage(update.message.chat.id,
-            f'@{user_name} Вы выбрали {full_date.strftime("%d/%m/%Y")}\n' +
-            f'Введите время дедлайна(hh:mm)\n' +
-            f'для задачи {task_id}',
-            reply_markup=ForceReplyAndReplyKeyboardRemove(selective=True))
+        msg = (f'@{user_name} Вы выбрали {full_date.strftime("%d/%m/%Y")}\n'
+               f'Введите время дедлайна(hh:mm)\n' +
+               f'для задачи {task_id}')
+        update.message.bot.sendMessage(update.message.chat.id, msg,
+                                       reply_markup=ForceReplyAndRemKeyboard(selective=True))
 
 
 def get_time(update, context):
     try:
         reply_msg_text = update.message.reply_to_message.text
-        if (reply_msg_text.find('Введите время дедлайна(hh:mm)') != -1):
+        if reply_msg_text.find('Введите время дедлайна(hh:mm)') != -1:
             handler = db_connector.DataBaseConnector()
             chat_id = update.message.chat.id
             user_id = update.message.from_user.id
 
             time = re.sub(' *', '', update.message.text, 1)
-            #center = time.find(':')
 
-            #task_id = int(_get_task_id(msg_text))
             task_id = int(re.sub('для задачи ', '',
                         reply_msg_text[reply_msg_text.rfind('\n') + 1:], 1))
             task_info = handler.task_info(task_id, chat_id)
@@ -229,7 +223,7 @@ def get_time(update, context):
         else:
             update.message.reply_text('Извините, не получилось.')
             return
-    except:
+    except (ValueError, ConnectionError):
         return
 
 
