@@ -13,16 +13,6 @@ _ERR_MSG = 'Извините, произошла ошибка'
 CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
 
 
-class ForceReplyAndRemKeyboard(ReplyMarkup):
-
-    def __init__(self, force_reply=True, selective=False, **kwargs):
-        # Required
-        self.remove_keyboard = True
-        self.force_reply = bool(force_reply)
-        # Optionals
-        # self.selective = bool(selective)
-
-
 def _rem_command(text):
     """Remove '/command' from text"""
     return re.sub('/[a-zA-Z_]+', '', text, 1)
@@ -128,7 +118,8 @@ def update_deadline(update, context):
     else:
         update.message.reply_text(f'Пожалуйста, выберите дату для задания ' +
                                   f'{task_id}',
-                                  reply_markup=calendar_keyboard.create_calendar())
+                                  reply_markup=calendar_keyboard.
+                                  create_calendar())
     user_data = context.user_data
     if 'task id' in user_data:
         del user_data['task id']
@@ -181,7 +172,7 @@ def inline_calendar_handler(update, context):
                f'Введите время дедлайна(hh:mm)\n' +
                f'для задачи {task_id}')
         update.message.bot.sendMessage(update.message.chat.id, msg,
-                                       reply_markup=ForceReplyAndRemKeyboard(selective=True))
+                                       reply_markup=ForceReply(selective=True))
 
 
 def get_time(update, context):
@@ -219,12 +210,12 @@ def get_time(update, context):
                     update.message.reply_text('Время выполнения установлено.')
 
             except (ValueError, ConnectionError):
-                update.message.reply_text('Извините, не получилось.')
+                update.message.reply_text(_ERR_MSG)
                 return
         else:
-            update.message.reply_text('Извините, не получилось.')
+            update.message.reply_text(_ERR_MSG)
             return
-    except (ValueError, ConnectionError):
+    except (ValueError, ConnectionError, AttributeError):
         return
 
 
@@ -453,7 +444,8 @@ def set_marked_status(update, context):
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
         else:
-            update.message.reply_text('Вы не можете снять отметку у этого задания.',
+            update.message.reply_text('Вы не можете снять отметку '
+                                      'этого задания.',
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
     else:
