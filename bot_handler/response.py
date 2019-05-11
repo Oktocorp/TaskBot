@@ -132,10 +132,6 @@ def inline_calendar_handler(update, context):
         process_calendar_selection(update, context)
 
     if selected:
-        update.message.reply_text(f'Вы выбрали '+
-                                  f'{full_date.strftime("%d/%m/%Y")}\n',
-                                  reply_markup=ReplyKeyboardRemove())
-
         handler = db_connector.DataBaseConnector()
         chat_id = update.message.chat.id
         user_id = update.callback_query.from_user.id
@@ -161,31 +157,27 @@ def inline_calendar_handler(update, context):
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
         else:
-            update.message.reply_text('Срок выполнения установлен.',
-                                      disable_notification=True,
-                                      reply_markup=ReplyKeyboardRemove())
-
-        update.message.bot.delete_message(update.message.chat.id,
+            update.message.bot.delete_message(update.message.chat.id,
                                           update.message.message_id)
-        user_name = update.callback_query.from_user.username
-        msg = (f'@{user_name} Вы выбрали {full_date.strftime("%d/%m/%Y")}\n'
-               f'Введите время дедлайна(hh:mm)\n' +
-               f'для задачи {task_id}')
-        update.message.bot.sendMessage(update.message.chat.id, msg,
-                                       reply_markup=ForceReply(selective=True))
+            user_name = update.callback_query.from_user.username
+            update.message.bot.sendMessage(update.message.chat.id,
+            f'@{user_name} Вы выбрали дату {full_date.strftime("%d/%m/%Y")}\n' +
+            'Чтобы установить точное время дедлайна ответье на это сообщение' +                              
+            ' и введите его в формате \"hh:mm\"\n' +
+            f'Номер задачи: {task_id}')
 
 
 def get_time(update, context):
     try:
         reply_msg_text = update.message.reply_to_message.text
-        if reply_msg_text.find('Введите время дедлайна(hh:mm)') != -1:
+        if reply_msg_text.find('Чтобы установить точное время дедлайна ответье на это сообщение') != -1:
             handler = db_connector.DataBaseConnector()
             chat_id = update.message.chat.id
             user_id = update.message.from_user.id
 
             time = re.sub(' *', '', update.message.text, 1)
 
-            task_id = int(re.sub('для задачи ', '',
+            task_id = int(re.sub('Номер задачи: ', '',
                         reply_msg_text[reply_msg_text.rfind('\n') + 1:], 1))
             task_info = handler.task_info(task_id, chat_id)
 
