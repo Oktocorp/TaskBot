@@ -20,7 +20,7 @@ class ForceReplyAndRemKeyboard(ReplyMarkup):
         self.remove_keyboard = True
         self.force_reply = bool(force_reply)
         # Optionals
-        self.selective = bool(selective)
+        # self.selective = bool(selective)
 
 
 def _rem_command(text):
@@ -58,10 +58,11 @@ def add_task(update, context):
         update.message.reply_text('Вы не можете добавить пустое задание.')
         return
     try:
-        handler.add_task(chat_id, creator_id, msg_text)
+        task_id = handler.add_task(chat_id, creator_id, msg_text)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
+    # todo: use task_id to send launch task menu
     update.message.reply_text('Задание успешно добавлено.')
 
 
@@ -114,9 +115,9 @@ def update_deadline(update, context):
             task_id = int(_get_task_id(msg_text))
         task_info = handler.task_info(task_id, chat_id)
 
-        success = (not task_info['closed'] and task_info['chat_id'] == chat_id
-                   and task_info['creator_id'] == user_id
-                   or user_id in task_info['workers'])
+        success = (task_info['creator_id'] == user_id
+                   or user_id in task_info['workers']
+                   or not task_info['workers'])
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
@@ -227,12 +228,12 @@ def get_time(update, context):
         return
 
 
-def get_list(update, context):
+def get_list(update, context, free_only=False):
     """Sends the task list"""
     handler = db_connector.DataBaseConnector()
     chat = update.message.chat
     try:
-        rows = handler.get_tasks(chat.id)
+        rows = handler.get_tasks(chat.id, free_only=free_only)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return

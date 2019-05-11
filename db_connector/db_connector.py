@@ -21,9 +21,11 @@ class DataBaseConnector:
         if err:
             self._log.warning('Unable to execute SQL', err)
 
-    def _commit(self, *args):
+    def _commit(self, *args, fetch_data=False):
         """
         Try to execute SQL query
+        :returns number of rows affected
+        If fetch_data flag is set, row content is also returned
         :raises ConnectionError: if couldn't connect to DB
         :raises ValueError: if couldn't execute SQL
         """
@@ -35,14 +37,19 @@ class DataBaseConnector:
             raise ConnectionError('Unable to connect to the DataBase')
 
         self._cur = self._conn.cursor()
+        row = None
         try:
             self._cur.execute(*args)
             self._conn.commit()
+            if fetch_data:
+                row = self._cur.fetchone()
         except (Exception, psycopg2.DatabaseError) as err:
             self._close_conn(err)
             raise ValueError('Unable to execute SQL')
         rows_num = self._cur.rowcount
         self._close_conn()
+        if fetch_data:
+            return rows_num, row
         return rows_num
 
     def _fetch_success(self, *args):
@@ -75,6 +82,7 @@ class DataBaseConnector:
                  deadline=None, workers: list = None):
         """
         Add new task to the database.
+        :returns New task id
         :raises ConnectionError: if DB exception occurred
         :raises ValueError: if couldn't add task to DB
         """
@@ -84,13 +92,16 @@ class DataBaseConnector:
         sql_str = '''
         INSERT INTO tasks (chat_id, creator_id, task_text,
         marked, deadline, workers) VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING id;
         '''
         sql_val = (chat_id, creator_id, task_text, marked, deadline, workers)
 
         try:
-            self._commit(sql_str, sql_val)
+            count, info = self._commit(sql_str, sql_val, fetch_data=True)
+            task_id = int(info[0])
         except (ValueError, ConnectionError):  # Pass the exception up
             raise
+        return task_id
 
     def close_task(self, task_id, chat_id, user_id):
         """
@@ -103,10 +114,10 @@ class DataBaseConnector:
         UPDATE tasks
         SET closed = (%s)
         WHERE id = (%s)  AND chat_id = (%s)
-        AND (workers IS NULL OR creator_id = (%s) OR (%s) = ANY(workers))
+        AND (workers = (%s) OR creator_id = (%s) OR (%s) = ANY(workers))
         AND closed = (%s)
         '''
-        sql_val = (True, task_id, chat_id, user_id, user_id, False)
+        sql_val = (True, task_id, chat_id, [], user_id, user_id, False)
 
         try:
             update_res = self._commit(sql_str, sql_val)
@@ -203,9 +214,10 @@ class DataBaseConnector:
             return False
         return True
 
-    def get_tasks(self, chat_id):
+    def get_tasks(self, chat_id, free_only=False):
         """
         Get all tasks from the given chat
+        if free_only flag is set, only vacant tasks are returned
         :returns DictRow (list of tasks which belong to this chat)
         Each task is represented by dict
         dict keys: id, creator_id, task_text, marked, deadline, workers
@@ -218,6 +230,9 @@ class DataBaseConnector:
         FROM tasks WHERE chat_id = (%s)  AND closed = (%s)
         '''
         sql_val = (chat_id, False)
+        if free_only:
+            sql_str += 'AND workers = (%s)'
+            sql_val += ([],)
 
         try:
             select_res = self._fetch_success(sql_str, sql_val)
@@ -233,9 +248,9 @@ class DataBaseConnector:
         """
         sql_str = '''
                 SELECT id, creator_id, task_text, marked, deadline, workers 
-                FROM tasks WHERE id = (%s) AND chat_id = (%s)
+                FROM tasks WHERE id = (%s) AND chat_id = (%s) AND closed = (%s)
                 '''
-        sql_val = (task_id, chat_id)
+        sql_val = (task_id, chat_id, False)
 
         try:
             task = self._fetch_success(sql_str, sql_val)[0]
@@ -254,10 +269,10 @@ class DataBaseConnector:
         UPDATE tasks
         SET marked = (%s)
         WHERE id = (%s)  AND chat_id = (%s)
-        AND (workers IS NULL OR creator_id = (%s) OR (%s) = ANY(workers))
+        AND (workers = (%s) OR creator_id = (%s) OR (%s) = ANY(workers))
         AND closed = (%s)
         '''
-        sql_val = (marked, task_id, chat_id, user_id, user_id, False)
+        sql_val = (marked, task_id, chat_id, [], user_id, user_id, False)
 
         try:
             update_res = self._commit(sql_str, sql_val)
