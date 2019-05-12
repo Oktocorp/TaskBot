@@ -307,3 +307,24 @@ class DataBaseConnector:
         if update_res is None or update_res == -1 or update_res == 0:
             return False
         return True
+
+    def create_reminder(self, task_id, user_id, date_time):
+        """
+        Add new reminder to the database.
+        :returns Success indicator
+        :raises ConnectionError: if DB exception occurred
+        :raises ValueError: if couldn't add task to DB
+        """
+
+        sql_str = '''
+                INSERT INTO reminders (task_id, user_id, datetime)
+                VALUES (%s, %s, %s)
+                RETURNING id;
+                '''
+        sql_val = (task_id, user_id, date_time)
+
+        try:
+            res = self._commit(sql_str, sql_val)
+        except (ValueError, ConnectionError):  # Pass the exception up
+            raise
+        return res

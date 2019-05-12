@@ -4,13 +4,16 @@ import re
 from datetime import datetime
 from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
                       ForceReply, TelegramError)
+from telegram.ext import ConversationHandler
 import html
 from telegram_calendar_keyboard import calendar_keyboard
-from telegram.ext import ConversationHandler
+
 
 _DEF_TZ = pytz.timezone('Europe/Moscow')
 _ERR_MSG = 'Извините, произошла ошибка'
-CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
+
+CHOOSING_COMMAND, CHOOSING_DL_DATE, CHOOSING_REMIND_DATE, \
+    TYPING_REMIND_TIME, TYPING_DL_TIME = range(5)
 
 
 def _rem_command(text):
@@ -122,11 +125,12 @@ def update_deadline(update, context):
         update.message.reply_text(f'Пожалуйста, выберите дату',
                                   reply_markup=calendar_keyboard.
                                   create_calendar())
+        return CHOOSING_DL_DATE
 
 
-def inline_calendar_handler(update, context):
-    selected, full_date, update.message = calendar_keyboard.\
-        process_calendar_selection(update, context)
+def deadline_cal_handler(update, context):
+    selected, full_date, update.message = \
+        calendar_keyboard.process_calendar_selection(update, context)
 
     if selected:
         handler = db_connector.DataBaseConnector()
@@ -162,11 +166,13 @@ def inline_calendar_handler(update, context):
                 update.message.chat.id,
                 (f'@{user_name}, Вы выбрали дату '
                  f'{full_date.strftime("%d/%m/%Y")}\n'
-                 'Для уточнения времени отправьте его в формате \"hh:mm\"\n'),
+                 'Для уточнения времени отправьте его в формате \"hh:mm\"'
+                 'в ответном сообщении.'),
                 reply_markup=ForceReply(selective=True))
+            return TYPING_DL_TIME
 
 
-def get_time(update, context):
+def get_dl_time(update, context):
     user_data = context.user_data
     try:
         handler = db_connector.DataBaseConnector()
@@ -182,9 +188,7 @@ def get_time(update, context):
         minutes = int(time[time.find(':') + 1:].strip())
         due_date = due_date.replace(hour=hours, minute=minutes, second=0,
                                     tzinfo=None)
-        print(due_date)
         due_date = _DEF_TZ.localize(due_date)
-        print(due_date)
 
         success = handler.set_deadline(task_id, chat_id, user_id,
                                        due_date)
@@ -202,7 +206,6 @@ def get_time(update, context):
 
 def get_list(update, context, for_user=False, free_only=False):
     """Sends the task list"""
-
     chat = update.message.chat
     user_id = update.message.from_user.id
 
@@ -486,6 +489,7 @@ def act_task(update, context):
 
         buttons.append([])
         buttons[-1] += ['Покинуть меню']
+        buttons[-1] += ['Напоминание']
         markup = ReplyKeyboardMarkup(buttons,
                                      selective=True,
                                      one_time_keyboard=True,
@@ -495,4 +499,34 @@ def act_task(update, context):
     except (ValueError, ConnectionError, TelegramError):
         update.message.reply_text(_ERR_MSG)
         return ConversationHandler.END
-    return CHOOSING
+    return CHOOSING_COMMAND
+
+
+def add_reminder(update, context):
+    user_data = context.user_data
+    user_data['mode'] = 'reminder'
+    update.message.bot.send_message(
+        update.message.chat.id, 'Пожалуйста, выберите дату',
+        disable_notification=True,
+        reply_markup=calendar_keyboard.create_calendar())
+    return CHOOSING_REMIND_DATE
+
+
+def reminder_cal_handler(update, context):
+    selected, full_date, update.message = \
+        calendar_keyboard.process_calendar_selection(update, context)
+    if selected:
+        context.user_data['datetime'] = full_date
+        update.message.bot.delete_message(update.message.chat.id,
+                                          update.message.message_id)
+        update.message.bot.sendMessage(
+            update.message.chat.id,
+            (f'Вы выбрали дату '
+             f'{full_date.strftime("%d/%m/%Y")}\n'
+             'Введите время в формате \"hh:mm\"\n'),
+            reply_markup=ReplyKeyboardRemove(selective=True))
+        return TYPING_REMIND_TIME
+
+
+def get_rem_time(update, context):
+    print('Got time: ', context.user_data['datetime'])
