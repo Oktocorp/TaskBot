@@ -233,29 +233,54 @@ class DataBaseConnector:
         if free_only:
             sql_str += 'AND workers = (%s)'
             sql_val += ([],)
-
         try:
             select_res = self._fetch_success(sql_str, sql_val)
         except (ValueError, ConnectionError):  # Pass the exception up
             raise
         return select_res
 
-    def task_info(self, task_id, chat_id):
+    def get_user_tasks(self, user_id):
         """
-        Get task data as dict
-        :return: RealDictRow:(id, creator_id, task_text,
-                              marked, deadline, workers)
+        Get all tasks assigned to the user
+        :returns DictRow (list of tasks)
+        Each task is represented by dict
+        dict keys: id, creator_id, task_text, marked, deadline, workers
+
+        :raises ValueError: if unable to fetch tasks from the DataBase
+        :raises ConnectionError: if DB exception occurred
         """
         sql_str = '''
-                SELECT id, creator_id, task_text, marked, deadline, workers 
-                FROM tasks WHERE id = (%s) AND chat_id = (%s) AND closed = (%s)
+        SELECT id, creator_id, task_text, marked, deadline, workers 
+        FROM tasks WHERE (%s) = ANY(workers) AND closed = (%s)
+        '''
+        sql_val = (user_id, False)
+        try:
+            select_res = self._fetch_success(sql_str, sql_val)
+        except (ValueError, ConnectionError):  # Pass the exception up
+            raise
+        return select_res
+
+    def task_info(self, task_id):
+        """
+        Get task data as dict
+        :return: RealDictRow:(id, chat_id, creator_id, task_text,
+                              marked, deadline, workers)
+        :raises ValueError: if unable to fetch tasks from the DataBase
+        :raises ConnectionError: if DB exception occurred
+        """
+        sql_str = '''
+                SELECT id, chat_id, creator_id, task_text, marked, deadline, 
+                workers 
+                FROM tasks WHERE id = (%s) AND closed = (%s)
                 '''
-        sql_val = (task_id, chat_id, False)
+        sql_val = (task_id, False)
 
         try:
             task = self._fetch_success(sql_str, sql_val)[0]
-        except (ValueError, ConnectionError):  # Pass the exception up
-            raise
+        except IndexError:
+            raise ValueError('Could not find task')
+        except (ValueError, ConnectionError):
+            raise  # Pass the exception up
         return task
 
     def set_marked_status(self, task_id, chat_id, user_id, marked):

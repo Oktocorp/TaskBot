@@ -29,6 +29,9 @@ class BotHandler:
                 update, context, free_only=True)))
         self.dp.add_handler(CommandHandler('help', response.help_msg))
         self.dp.add_handler(CommandHandler('list', response.get_list))
+        self.dp.add_handler(CommandHandler(
+            'my', lambda update, context: response.get_list(
+                update, context, for_user=True)))
         self.dp.add_handler(CommandHandler('return', response.ret_task))
         self.dp.add_handler(CommandHandler('start', response.start))
         self.dp.add_handler(CommandHandler('take', response.take_task))

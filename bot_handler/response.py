@@ -2,8 +2,8 @@ import pytz
 import db_connector
 import re
 from datetime import datetime
-from telegram import (ParseMode, ReplyKeyboardMarkup,
-                      ReplyKeyboardRemove, ReplyMarkup, ForceReply)
+from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
+                      ForceReply, TelegramError)
 import html
 from telegram_calendar_keyboard import calendar_keyboard
 from telegram.ext import ConversationHandler
@@ -56,20 +56,23 @@ def add_task(update, context):
     update.message.reply_text('Задание успешно добавлено.')
 
 
-# todo: Allow admin to close and modify any task
 def close_task(update, context):
     """Mark the task as closed"""
     handler = db_connector.DataBaseConnector()
-    chat_id = update.message.chat.id
     user_id = update.message.from_user.id
     # remove leading command
     msg_text = _rem_command(update.message.text)
+    user_data = context.user_data
+    if 'chat id' in user_data:
+        chat_id = user_data['chat id']
+    else:
+        chat_id = update.message.chat.id
     try:
-        user_data = context.user_data
         if 'task id' in user_data:
             task_id = user_data['task id']
         else:
             task_id = int(_get_task_id(msg_text))
+
         success = handler.close_task(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
@@ -92,39 +95,33 @@ def close_task(update, context):
 def update_deadline(update, context):
     """Updates task deadline"""
     handler = db_connector.DataBaseConnector()
-    chat_id = update.message.chat.id
     user_id = update.message.from_user.id
     # remove leading command
     msg_text = _rem_command(update.message.text)
-
+    user_data = context.user_data
     try:
-        user_data = context.user_data
         if 'task id' in user_data:
             task_id = user_data['task id']
         else:
             task_id = int(_get_task_id(msg_text))
-        task_info = handler.task_info(task_id, chat_id)
+            user_data['task id'] = task_id
+        task_info = handler.task_info(task_id)
 
         success = (task_info['creator_id'] == user_id
                    or user_id in task_info['workers']
                    or not task_info['workers'])
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        return
+        return ConversationHandler.END
+
     if not success:
         update.message.reply_text('Вы не можете установить срок этому заданию.',
                                   disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove())
     else:
-        update.message.reply_text(f'Пожалуйста, выберите дату для задания ' +
-                                  f'{task_id}',
+        update.message.reply_text(f'Пожалуйста, выберите дату',
                                   reply_markup=calendar_keyboard.
                                   create_calendar())
-    user_data = context.user_data
-    if 'task id' in user_data:
-        del user_data['task id']
-    user_data.clear()
-    return ConversationHandler.END
 
 
 def inline_calendar_handler(update, context):
@@ -133,90 +130,93 @@ def inline_calendar_handler(update, context):
 
     if selected:
         handler = db_connector.DataBaseConnector()
-        chat_id = update.message.chat.id
+        user_data = context.user_data
+        if 'chat id' in user_data:
+            chat_id = user_data['chat id']
+        else:
+            chat_id = update.message.chat.id
+
         user_id = update.callback_query.from_user.id
 
-        task_id = re.sub('Пожалуйста, выберите дату для задания ',
-                         '', update.message.text, 1)
-
-        year = int(full_date.strftime("%Y"))
-        month = int(full_date.strftime("%m"))
-        date = int(full_date.strftime("%d"))
-        due_date = datetime(year, month, date, 12, 0, 0)
-        due_date = _DEF_TZ.localize(due_date)
-
+        full_date = full_date.replace(hour=23, minute=59, second=59)
+        full_date = _DEF_TZ.localize(full_date)
         try:
-            success = handler.set_deadline(task_id, chat_id, user_id, due_date)
-        except (ValueError, ConnectionError):
+            task_id = user_data['task id']
+            success = handler.set_deadline(task_id, chat_id, user_id, full_date)
+        except (ValueError, ConnectionError, KeyError):
             update.message.reply_text('Извините, не получилось.',
                                       reply_markup=ReplyKeyboardRemove())
-            return
+            return ConversationHandler.END
         if not success:
             update.message.reply_text('Вы не можете установить ' +
                                       'срок этому заданию.',
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
+            return ConversationHandler.END
         else:
+            user_data['deadline'] = full_date
             update.message.bot.delete_message(update.message.chat.id,
-                                          update.message.message_id)
+                                              update.message.message_id)
             user_name = update.callback_query.from_user.username
-            update.message.bot.sendMessage(update.message.chat.id,
-            f'@{user_name} Вы выбрали дату {full_date.strftime("%d/%m/%Y")}\n' +
-            'Чтобы установить точное время дедлайна ответье на это сообщение' +                              
-            ' и введите его в формате \"hh:mm\"\n' +
-            f'Номер задачи: {task_id}')
+            update.message.bot.sendMessage(
+                update.message.chat.id,
+                (f'@{user_name}, Вы выбрали дату '
+                 f'{full_date.strftime("%d/%m/%Y")}\n'
+                 'Для уточнения времени отправьте его в формате \"hh:mm\"\n'),
+                reply_markup=ForceReply(selective=True))
 
 
 def get_time(update, context):
+    user_data = context.user_data
     try:
-        reply_msg_text = update.message.reply_to_message.text
-        if reply_msg_text.find('Чтобы установить точное время дедлайна ответье на это сообщение') != -1:
-            handler = db_connector.DataBaseConnector()
-            chat_id = update.message.chat.id
-            user_id = update.message.from_user.id
+        handler = db_connector.DataBaseConnector()
+        chat_id = user_data['chat id']
+        user_id = update.message.from_user.id
 
-            time = re.sub(' *', '', update.message.text, 1)
+        time = re.sub(' *', '', update.message.text, 1)
 
-            task_id = int(re.sub('Номер задачи: ', '',
-                        reply_msg_text[reply_msg_text.rfind('\n') + 1:], 1))
-            task_info = handler.task_info(task_id, chat_id)
+        task_id = user_data['task id']
+        due_date = user_data['deadline']
 
-            year = int(task_info['deadline'].strftime("%Y"))
-            month = int(task_info['deadline'].strftime("%m"))
-            date = int(task_info['deadline'].strftime("%d"))
+        hours = int(time[:time.find(':')].strip())
+        minutes = int(time[time.find(':') + 1:].strip())
+        due_date = due_date.replace(hour=hours, minute=minutes, second=0,
+                                    tzinfo=None)
+        print(due_date)
+        due_date = _DEF_TZ.localize(due_date)
+        print(due_date)
 
-            hours = int(time[:time.find(':')].strip())
-            minutes = int(time[time.find(':') + 1:].strip())
+        success = handler.set_deadline(task_id, chat_id, user_id,
+                                       due_date)
 
-            try:
-                due_date = datetime(year, month, date, hours, minutes, 0)
-                due_date = _DEF_TZ.localize(due_date)
-
-                success = handler.set_deadline(task_id, chat_id, user_id,
-                                               due_date)
-
-                if not success:
-                    update.message.reply_text('Вы не можете установить время ' +
-                                              'этому заданию.')
-                else:
-                    update.message.reply_text('Время выполнения установлено.')
-
-            except (ValueError, ConnectionError):
-                update.message.reply_text(_ERR_MSG)
-                return
+        if not success:
+            update.message.reply_text('Вы не можете установить время ' +
+                                      'этому заданию.')
         else:
-            update.message.reply_text(_ERR_MSG)
-            return
+            update.message.reply_text('Время выполнения установлено.')
+
     except (ValueError, ConnectionError, AttributeError):
+        update.message.reply_text(_ERR_MSG)
+    return ConversationHandler.END
+
+
+def get_list(update, context, for_user=False, free_only=False):
+    """Sends the task list"""
+
+    chat = update.message.chat
+    user_id = update.message.from_user.id
+
+    if for_user and user_id != chat.id:
+        msg = 'Список Ваших задач доступен в личном диалоге'
+        update.message.reply_text(msg)
         return
 
-
-def get_list(update, context, free_only=False):
-    """Sends the task list"""
-    handler = db_connector.DataBaseConnector()
-    chat = update.message.chat
     try:
-        rows = handler.get_tasks(chat.id, free_only=free_only)
+        handler = db_connector.DataBaseConnector()
+        if for_user:
+            rows = handler.get_user_tasks(user_id)
+        else:
+            rows = handler.get_tasks(chat.id, free_only=free_only)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return
@@ -245,10 +245,12 @@ def get_list(update, context, free_only=False):
 
             reps_text += f'<b>Исполнитель:</b> {workers}'
 
-        # todo: strip date or year if possible
         # Localize UTC time
         if row['deadline']:
-            dl_format = ' %a %d.%m %H:%M'
+            dl_format = ' %a %d.%m'
+            if row['deadline'].second == 0:
+                dl_format += ' %H:%M'
+
             dl = row['deadline'].astimezone(_DEF_TZ).strftime(dl_format)
             reps_text += f'<b>Срок:</b> <code>{dl}</code>\n'
 
@@ -277,11 +279,14 @@ def _row_sort_key(row):
 def take_task(update, context):
     """Assign task to the current user"""
     handler = db_connector.DataBaseConnector()
-    chat_id = update.message.chat.id
     user_id = update.message.from_user.id
     msg_text = _rem_command(update.message.text)
+    user_data = context.user_data
+    if 'chat id' in user_data:
+        chat_id = user_data['chat id']
+    else:
+        chat_id = update.message.chat.id
     try:
-        user_data = context.user_data
         if 'task id' in user_data:
             task_id = user_data['task id']
         else:
@@ -289,7 +294,8 @@ def take_task(update, context):
         success = handler.assign_task(task_id, chat_id, user_id, [user_id])
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        return
+        user_data.clear()
+        return ConversationHandler.END
 
     if not success:
         update.message.reply_text('Вы не можете взять это задание.',
@@ -297,9 +303,6 @@ def take_task(update, context):
     else:
         update.message.reply_text('Задание захвачено.',
                                   reply_markup=ReplyKeyboardRemove())
-    user_data = context.user_data
-    if 'task id' in user_data:
-        del user_data['task id']
     user_data.clear()
     return ConversationHandler.END
 
@@ -307,11 +310,14 @@ def take_task(update, context):
 def ret_task(update, context):
     """Return task to the vacant pool"""
     handler = db_connector.DataBaseConnector()
-    chat_id = update.message.chat.id
+    user_data = context.user_data
+    if 'chat id' in user_data:
+        chat_id = user_data['chat id']
+    else:
+        chat_id = update.message.chat.id
     user_id = update.message.from_user.id
     msg_text = _rem_command(update.message.text)
     try:
-        user_data = context.user_data
         if 'task id' in user_data:
             task_id = user_data['task id']
         else:
@@ -319,7 +325,8 @@ def ret_task(update, context):
         success = handler.rem_worker(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        return
+        user_data.clear()
+        return ConversationHandler.END
 
     if not success:
         update.message.reply_text('Вы не можете вернуть это задание.',
@@ -327,22 +334,21 @@ def ret_task(update, context):
     else:
         update.message.reply_text('Вы отказались от задания.',
                                   reply_markup=ReplyKeyboardRemove())
-    user_data = context.user_data
-    if 'task id' in user_data:
-        del user_data['task id']
-    user_data.clear()
     return ConversationHandler.END
 
 
 def rem_deadline(update, context):
     """Removes task deadline"""
     handler = db_connector.DataBaseConnector()
-    chat_id = update.message.chat.id
+    user_data = context.user_data
+    if 'chat id' in user_data:
+        chat_id = user_data['chat id']
+    else:
+        chat_id = update.message.chat.id
     user_id = update.message.from_user.id
     # remove leading command
     msg_text = _rem_command(update.message.text)
     try:
-        user_data = context.user_data
         if 'task id' in user_data:
             task_id = user_data['task id']
         else:
@@ -350,7 +356,8 @@ def rem_deadline(update, context):
         success = handler.set_deadline(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        return
+        user_data.clear()
+        return ConversationHandler.END
     if not success:
         update.message.reply_text('Вы не можете отменить срок выполнения '
                                   'этого задания.',
@@ -358,9 +365,6 @@ def rem_deadline(update, context):
     else:
         update.message.reply_text('Срок выполнения отменен.',
                                   reply_markup=ReplyKeyboardRemove())
-    user_data = context.user_data
-    if 'task id' in user_data:
-        del user_data['task id']
     user_data.clear()
     return ConversationHandler.END
 
@@ -369,67 +373,32 @@ def done(update, context):
     """Finish act conversation"""
     msg = update.message.reply_text('Принято', disable_notification=True,
                                     reply_markup=ReplyKeyboardRemove())
-    update.message.bot.delete_message(update.message.chat.id,
-                                      msg.message_id)
+    update.message.bot.delete_message(update.message.chat.id, msg.message_id)
     context.user_data.clear()
     return ConversationHandler.END
 
 
-def act_task(update, context):
-    handler = db_connector.DataBaseConnector()
-    msg_text = _rem_command(update.message.text)
-    chat_id = update.message.chat.id
-    user_id = update.message.from_user.id
-    try:
-        task_id = int(_get_task_id(msg_text))
-        context.user_data['task id'] = task_id
-        task_info = handler.task_info(task_id, chat_id)
-        buttons = []
-        if user_id == task_info['creator_id']:
-            buttons += [["Закрыть"]]
-            if task_info['marked']:
-                buttons += [["Снять отметку"]]
-            else:
-                buttons += [["Отметить"]]
-            if task_info['deadline']:
-                buttons += [["Удалить срок"]]
-            else:
-                buttons += [["Установить/изменить срок"]]
-        if user_id in task_info['workers']:
-            buttons += [["Отказаться"]]
-        else:
-            buttons += [["Взять"]]
-        buttons += [["Отмена"]]
-        markup = ReplyKeyboardMarkup(buttons,
-                                     selective=True,
-                                     one_time_keyboard=True,
-                                     resize_keyboard=False)
-        update.message.reply_text("Выберите действие с задачей",
-                                  reply_markup=markup)
-    except (ValueError, ConnectionError):
-        update.message.reply_text(_ERR_MSG)
-        return
-
-    return CHOOSING
-
-
 def set_marked_status(update, context):
     handler = db_connector.DataBaseConnector()
-    chat_id = update.message.chat.id
+    user_data = context.user_data
+    if 'chat id' in user_data:
+        chat_id = user_data['chat id']
+    else:
+        chat_id = update.message.chat.id
     user_id = update.message.from_user.id
     # remove leading command
     msg_text = _rem_command(update.message.text)
     try:
-        user_data = context.user_data
         if 'task id' in user_data:
             task_id = user_data['task id']
         else:
             task_id = int(_get_task_id(msg_text))
-        marked = not handler.task_info(task_id, chat_id)['marked']
+        marked = not handler.task_info(task_id)['marked']
         success = handler.set_marked_status(task_id, chat_id, user_id, marked)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        return
+        user_data.clear()
+        return ConversationHandler.END
     if not success:
         if marked:
             update.message.reply_text('Вы не можете отметить это задание.',
@@ -449,9 +418,81 @@ def set_marked_status(update, context):
             update.message.reply_text('Отметка успешно удалена.',
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
-    user_data = context.user_data
-    if 'task id' in user_data:
-        del user_data['task id']
     user_data.clear()
     return ConversationHandler.END
 
+
+def act_task(update, context):
+    handler = db_connector.DataBaseConnector()
+    msg_text = _rem_command(update.message.text)
+    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
+    try:
+        task_id = int(_get_task_id(msg_text))
+        context.user_data['task id'] = task_id
+        task_info = handler.task_info(task_id)
+        context.user_data['chat id'] = task_info['chat_id']
+        task_chat = update.message.bot.get_chat(task_info['chat_id'])
+
+        if task_chat.id != chat_id and user_id not in task_info['workers']:
+            update.message.reply_text('Вы не можете управлять этим заданием.',
+                                      disable_notification=True,
+                                      reply_markup=ReplyKeyboardRemove())
+            return ConversationHandler.END
+
+        if task_chat.type == 'private':
+            is_admin = False
+        else:
+            is_admin = user_id in [admin.user.id for admin in
+                                   update.message.bot.get_chat_administrators(
+                                       task_info['chat_id'])]
+        buttons = [[]]
+        cols = 0
+        if (user_id in task_info['workers'] or is_admin
+                or task_info['chat_id'] == chat_id and not task_info['workers']
+                or task_info['creator_id'] == user_id):
+            buttons[-1] += ['Закрыть']
+            cols += 1
+
+        if user_id in task_info['workers']:
+            cols += 1
+            buttons[-1] += ['Отказаться']
+
+        elif task_info['chat_id'] == chat_id and not task_info['workers']:
+            if not cols % 2:
+                buttons.append([])
+            cols += 1
+            buttons[-1] += ["Взять"]
+
+        if task_info['creator_id'] == user_id or is_admin:
+            if task_info['deadline']:
+                buttons.append([])
+                buttons[-1] += ['Изменить срок']
+                buttons[-1] += ['Удалить срок']
+                cols = 0
+            else:
+                if not cols % 2:
+                    buttons.append([])
+                buttons[-1] += ['Установить срок']
+                cols += 1
+
+            if not cols % 2:
+                buttons.append([])
+            if task_info['marked']:
+                buttons[-1] += ['Снять отметку']
+            else:
+                buttons[-1] += ['Отметить']
+            cols += 1
+
+        buttons.append([])
+        buttons[-1] += ['Покинуть меню']
+        markup = ReplyKeyboardMarkup(buttons,
+                                     selective=True,
+                                     one_time_keyboard=True,
+                                     resize_keyboard=False)
+        update.message.reply_text("Выберите действие с задачей",
+                                  reply_markup=markup)
+    except (ValueError, ConnectionError, TelegramError):
+        update.message.reply_text(_ERR_MSG)
+        return ConversationHandler.END
+    return CHOOSING

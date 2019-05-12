@@ -15,7 +15,8 @@ act_handler = ConversationHandler(
                     MessageHandler(Filters.regex('^Взять$'),
                                    response.take_task,
                                    pass_user_data=True),
-                    MessageHandler(Filters.regex('^Установить/изменить срок$'),
+                    MessageHandler(Filters.regex(
+                        '^Установить срок|Изменить срок$'),
                                    response.update_deadline,
                                    pass_user_data=True),
                     MessageHandler(Filters.regex('^Удалить срок$'),
@@ -29,6 +30,7 @@ act_handler = ConversationHandler(
                                    pass_user_data=True)
                     ]
     },
-    fallbacks=[MessageHandler(Filters.regex('^Отмена$'), response.done,
-                              pass_user_data=True)]
+    fallbacks=[MessageHandler(Filters.regex('^Покинуть меню$'), response.done,
+                              pass_user_data=True)],
+    allow_reentry=True,
 )
