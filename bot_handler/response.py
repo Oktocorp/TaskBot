@@ -529,4 +529,30 @@ def reminder_cal_handler(update, context):
 
 
 def get_rem_time(update, context):
-    print('Got time: ', context.user_data['datetime'])
+    user_data = context.user_data
+    user_id = update.message.from_user.id
+    handler = db_connector.DataBaseConnector()
+    try:
+        time = re.search(r'\d{1,2}:\d{2}', update.message.text).group()
+        task_id = user_data['task id']
+        date_time = user_data['datetime']
+
+        hours = int(time[:time.find(':')].strip())
+        minutes = int(time[time.find(':') + 1:].strip())
+        date_time = date_time.replace(hour=hours, minute=minutes, second=0,
+                                      tzinfo=None)
+        date_time = _DEF_TZ.localize(date_time)
+
+        success = handler.create_reminder(task_id, user_id, date_time)
+
+    except (ValueError, AttributeError, ConnectionError):
+        update.message.reply_text(_ERR_MSG, disable_notification=True)
+        return ConversationHandler.END
+
+    if success:
+        msg = 'Напоминание успешно установлено'
+        update.message.reply_text(msg, disable_notification=True)
+    else:
+        update.message.reply_text(_ERR_MSG, disable_notification=True)
+
+    return ConversationHandler.END

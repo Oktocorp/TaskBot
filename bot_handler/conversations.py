@@ -57,8 +57,7 @@ act_handler = ConversationHandler(
                                            pass_user_data=True)
                              ],
        response.TYPING_REMIND_TIME: [
-                            MessageHandler(Filters.regex(r'\d{1,2}:\d{2}'),
-                                           response.get_rem_time,
+                            MessageHandler(Filters.text, response.get_rem_time,
                                            pass_user_data=True)
                              ]
     },
