@@ -1,7 +1,7 @@
 import pytz
 import db_connector
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
                       ForceReply, TelegramError)
 from telegram.ext import ConversationHandler
@@ -253,7 +253,6 @@ def get_list(update, context, for_user=False, free_only=False):
             dl_format = ' %a %d.%m'
             if row['deadline'].second == 0:
                 dl_format += ' %H:%M'
-
             dl = row['deadline'].astimezone(_DEF_TZ).strftime(dl_format)
             reps_text += f'<b>Срок:</b> <code>{dl}</code>\n'
 
@@ -516,14 +515,21 @@ def reminder_cal_handler(update, context):
     selected, full_date, update.message = \
         calendar_keyboard.process_calendar_selection(update, context)
     if selected:
+        today = datetime.now(timezone.utc).astimezone(_DEF_TZ)
+        if today.date() > full_date.date():
+            msg = 'Дата неверна'
+            update.message.bot.sendMessage(
+                update.message.chat.id, msg,
+                reply_markup=ReplyKeyboardRemove(selective=True))
+            return ConversationHandler.END
+
         context.user_data['datetime'] = full_date
         update.message.bot.delete_message(update.message.chat.id,
                                           update.message.message_id)
+        msg = (f'Вы выбрали дату {full_date.strftime("%d/%m/%Y")}\n'
+               'Введите время в формате \"hh:mm\"\n')
         update.message.bot.sendMessage(
-            update.message.chat.id,
-            (f'Вы выбрали дату '
-             f'{full_date.strftime("%d/%m/%Y")}\n'
-             'Введите время в формате \"hh:mm\"\n'),
+            update.message.chat.id, msg,
             reply_markup=ReplyKeyboardRemove(selective=True))
         return TYPING_REMIND_TIME
 
@@ -539,9 +545,17 @@ def get_rem_time(update, context):
 
         hours = int(time[:time.find(':')].strip())
         minutes = int(time[time.find(':') + 1:].strip())
+
         date_time = date_time.replace(hour=hours, minute=minutes, second=0,
                                       tzinfo=None)
         date_time = _DEF_TZ.localize(date_time)
+        now = datetime.now(timezone.utc)
+        if now > date_time:
+            msg = 'Введенное время уже прошло'
+            update.message.bot.sendMessage(
+                update.message.chat.id, msg,
+                reply_markup=ReplyKeyboardRemove(selective=True))
+            return ConversationHandler.END
 
         success = handler.create_reminder(task_id, user_id, date_time)
 
