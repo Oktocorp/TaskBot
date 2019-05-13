@@ -486,9 +486,13 @@ def act_task(update, context):
                 buttons[-1] += ['Отметить']
             cols += 1
 
+        if not cols % 2:
+            buttons.append([])
+        buttons[-1] += ['Создать напоминание']
+
         buttons.append([])
         buttons[-1] += ['Покинуть меню']
-        buttons[-1] += ['Напоминание']
+
         markup = ReplyKeyboardMarkup(buttons,
                                      selective=True,
                                      one_time_keyboard=True,
@@ -502,8 +506,6 @@ def act_task(update, context):
 
 
 def add_reminder(update, context):
-    user_data = context.user_data
-    user_data['mode'] = 'reminder'
     update.message.bot.send_message(
         update.message.chat.id, 'Пожалуйста, выберите дату',
         disable_notification=True,

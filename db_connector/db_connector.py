@@ -341,13 +341,13 @@ class DataBaseConnector:
         Get all reminders which are ready to be triggered
         :returns DictRow (list of reminders)
         Each task is represented by dict
-        dict keys: id, user_id, task_text, deadline
+        dict keys: id, user_id, task_id, task_text, deadline
 
         :raises ValueError: if unable to fetch tasks from the DataBase
         :raises ConnectionError: if DB exception occurred
         """
         sql_str = '''
-                SELECT rem.id, rem.user_id, t.task_text, t.deadline 
+                SELECT rem.id, rem.user_id, rem.task_id, t.task_text, t.deadline 
                 FROM reminders AS rem, tasks as t
                 WHERE rem.datetime <= (%s) AND rem.canceled = (%s)
                 AND rem.task_id = t.id

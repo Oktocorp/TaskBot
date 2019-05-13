@@ -5,7 +5,7 @@ from telegram.ext import (Updater, CommandHandler, CallbackQueryHandler,
 
 import logger
 from bot_handler import conversations, response
-from bot_handler.reminders import send_reminders
+from bot_handler.reminders_queue import send_reminders, CLOSE_MSG, close_btn
 
 
 class BotHandler:
@@ -35,6 +35,9 @@ class BotHandler:
         self.dp.add_handler(CommandHandler('take', response.take_task))
         self.dp.add_handler(CommandHandler('no_dl', response.rem_deadline))
         self.dp.add_handler(CommandHandler('mark', response.set_marked_status))
+
+        self.dp.add_handler(CallbackQueryHandler(close_btn,
+                                                 pattern=f'^({CLOSE_MSG})$'))
 
         # Log all errors
         self.log = logger.get_logger(__name__)
