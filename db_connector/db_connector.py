@@ -1,7 +1,7 @@
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from datetime import datetime
+from datetime import datetime, timezone
 import logger
 
 
@@ -106,18 +106,25 @@ class DataBaseConnector:
     def close_task(self, task_id, chat_id, user_id):
         """
         Close task if possible
+        Also cancels all the connected reminders
         :return Success indicator
         :raises ConnectionError: if DB exception occurred
         :raises ValueError: if couldn't update task in the DB
         """
         sql_str = '''
+        WITH src AS(
         UPDATE tasks
         SET closed = (%s)
         WHERE id = (%s)  AND chat_id = (%s)
         AND (workers = (%s) OR creator_id = (%s) OR (%s) = ANY(workers))
         AND closed = (%s)
+        RETURNING *
+        )
+        UPDATE reminders
+        SET canceled = (%s)
+        WHERE task_id IN (SELECT id from src)
         '''
-        sql_val = (True, task_id, chat_id, [], user_id, user_id, False)
+        sql_val = (True, task_id, chat_id, [], user_id, user_id, False, True)
 
         try:
             update_res = self._commit(sql_str, sql_val)
@@ -328,3 +335,45 @@ class DataBaseConnector:
         except (ValueError, ConnectionError):  # Pass the exception up
             raise
         return res
+
+    def get_reminders(self):
+        """
+        Get all reminders which are ready to be triggered
+        :returns DictRow (list of reminders)
+        Each task is represented by dict
+        dict keys: id, user_id, task_text, deadline
+
+        :raises ValueError: if unable to fetch tasks from the DataBase
+        :raises ConnectionError: if DB exception occurred
+        """
+        sql_str = '''
+                SELECT rem.id, rem.user_id, t.task_text, t.deadline 
+                FROM reminders AS rem, tasks as t
+                WHERE rem.datetime <= (%s) AND rem.canceled = (%s)
+                AND rem.task_id = t.id
+                '''
+        sql_val = (datetime.now(timezone.utc), False)
+        try:
+            select_res = self._fetch_success(sql_str, sql_val)
+        except (ValueError, ConnectionError):  # Pass the exception up
+            raise
+        return select_res
+
+    def close_reminders(self, rem_ids: list):
+        """
+        Mark the reminders as closed
+        :raises ValueError: if unable to update tasks int the DataBase
+        :raises ConnectionError: if DB exception occurred
+        """
+        sql_str = '''
+                UPDATE reminders
+                SET canceled = (%s)
+                WHERE id = ANY (%s)
+                '''
+        sql_val = (True, rem_ids)
+        try:
+            update_res = self._commit(sql_str, sql_val)
+        except (ValueError, ConnectionError):  # Pass the exception up
+            raise
+        if update_res is None or update_res == -1:
+            raise ValueError('Unable to close tasks')

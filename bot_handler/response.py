@@ -9,7 +9,7 @@ import html
 from telegram_calendar_keyboard import calendar_keyboard
 
 
-_DEF_TZ = pytz.timezone('Europe/Moscow')
+DEF_TZ = pytz.timezone('Europe/Moscow')
 _ERR_MSG = 'Извините, произошла ошибка'
 
 CHOOSING_COMMAND, CHOOSING_DL_DATE, CHOOSING_REMIND_DATE, \
@@ -143,7 +143,7 @@ def deadline_cal_handler(update, context):
         user_id = update.callback_query.from_user.id
 
         full_date = full_date.replace(hour=23, minute=59, second=59)
-        full_date = _DEF_TZ.localize(full_date)
+        full_date = DEF_TZ.localize(full_date)
         try:
             task_id = user_data['task id']
             success = handler.set_deadline(task_id, chat_id, user_id, full_date)
@@ -188,7 +188,7 @@ def get_dl_time(update, context):
         minutes = int(time[time.find(':') + 1:].strip())
         due_date = due_date.replace(hour=hours, minute=minutes, second=0,
                                     tzinfo=None)
-        due_date = _DEF_TZ.localize(due_date)
+        due_date = DEF_TZ.localize(due_date)
 
         success = handler.set_deadline(task_id, chat_id, user_id,
                                        due_date)
@@ -251,9 +251,9 @@ def get_list(update, context, for_user=False, free_only=False):
         # Localize UTC time
         if row['deadline']:
             dl_format = ' %a %d.%m'
-            if row['deadline'].second == 0:
+            if row['deadline'].second == 0:  # if time is not default
                 dl_format += ' %H:%M'
-            dl = row['deadline'].astimezone(_DEF_TZ).strftime(dl_format)
+            dl = row['deadline'].astimezone(DEF_TZ).strftime(dl_format)
             reps_text += f'<b>Срок:</b> <code>{dl}</code>\n'
 
         reps_text += f'<b>Действия:</b>  /act_{row["id"]}\n'
@@ -515,7 +515,7 @@ def reminder_cal_handler(update, context):
     selected, full_date, update.message = \
         calendar_keyboard.process_calendar_selection(update, context)
     if selected:
-        today = datetime.now(timezone.utc).astimezone(_DEF_TZ)
+        today = datetime.now(timezone.utc).astimezone(DEF_TZ)
         if today.date() > full_date.date():
             msg = 'Дата неверна'
             update.message.bot.sendMessage(
@@ -548,7 +548,7 @@ def get_rem_time(update, context):
 
         date_time = date_time.replace(hour=hours, minute=minutes, second=0,
                                       tzinfo=None)
-        date_time = _DEF_TZ.localize(date_time)
+        date_time = DEF_TZ.localize(date_time)
         now = datetime.now(timezone.utc)
         if now > date_time:
             msg = 'Введенное время уже прошло'

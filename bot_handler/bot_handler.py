@@ -5,6 +5,7 @@ from telegram.ext import (Updater, CommandHandler, CallbackQueryHandler,
 
 import logger
 from bot_handler import conversations, response
+from bot_handler.reminders import send_reminders
 
 
 class BotHandler:
@@ -49,6 +50,8 @@ class BotHandler:
     def start(self):
         """Start the bot."""
         self.updater.start_polling()
+        self.updater.job_queue.run_repeating(send_reminders,
+                                             interval=60, first=0)
         self.updater.idle()
 
     def _localize(self):
