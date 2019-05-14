@@ -1,11 +1,11 @@
 from telegram.ext import (ConversationHandler, CallbackQueryHandler,
                           MessageHandler, Filters)
-from bot_handler import response, reminders_queue
+from bot_handler import response, reminders
 
 act_handler = ConversationHandler(
     entry_points=[MessageHandler(Filters.regex('^(/act_[\d]+)'),
                                  response.act_task),
-                  CallbackQueryHandler(reminders_queue.reset_btn,
+                  CallbackQueryHandler(reminders.reset_btn,
                                        pattern='^(pr:[\d]+)$')],
 
     states=
@@ -37,7 +37,7 @@ act_handler = ConversationHandler(
                                   pass_user_data=True),
                            MessageHandler(
                                   Filters.regex('^Создать напоминание$'),
-                                  response.add_reminder,
+                                  reminders.add_reminder,
                                   pass_user_data=True)
                            ],
 
@@ -49,7 +49,7 @@ act_handler = ConversationHandler(
 
        response.CHOOSING_REMIND_DATE: [
                            CallbackQueryHandler(
-                                   response.reminder_cal_handler,
+                                   reminders.reminder_cal_handler,
                                    pass_user_data=True)
                              ],
 
@@ -59,7 +59,7 @@ act_handler = ConversationHandler(
                                            pass_user_data=True)
                              ],
        response.TYPING_REMIND_TIME: [
-                            MessageHandler(Filters.text, response.get_rem_time,
+                            MessageHandler(Filters.text, reminders.get_rem_time,
                                            pass_user_data=True)
                              ]
     },
