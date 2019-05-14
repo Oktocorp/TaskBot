@@ -235,6 +235,10 @@ def get_list(update, context, for_user=False, free_only=False):
     for row in (sorted(rows, key=_row_sort_key)):
         task_mark = u'<b>[ ! ]</b> ' if row['marked'] else u'\u25b8 '
         reps_text += f'{task_mark} {html.escape(row["task_text"])}\n\n'
+        if for_user:
+            task_chat = update.message.bot.get_chat(row['chat_id'])
+            if task_chat.title:
+                reps_text += f'<b>Чат:</b> {task_chat.title}\n'
 
         # Parse workers list
         if row['workers']:

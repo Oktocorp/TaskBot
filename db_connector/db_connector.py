@@ -251,13 +251,13 @@ class DataBaseConnector:
         Get all tasks assigned to the user
         :returns DictRow (list of tasks)
         Each task is represented by dict
-        dict keys: id, creator_id, task_text, marked, deadline, workers
+        dict keys: id, chat_id, creator_id, task_text, marked, deadline, workers
 
         :raises ValueError: if unable to fetch tasks from the DataBase
         :raises ConnectionError: if DB exception occurred
         """
         sql_str = '''
-        SELECT id, creator_id, task_text, marked, deadline, workers 
+        SELECT id, chat_id, creator_id, task_text, marked, deadline, workers 
         FROM tasks WHERE (%s) = ANY(workers) AND closed = (%s)
         '''
         sql_val = (user_id, False)
