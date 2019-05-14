@@ -76,12 +76,15 @@ def close_task(update, context):
     else:
         chat_id = update.message.chat.id
     try:
+        admin = user_id in update.message.bot.get_chat_administrators(chat_id)
+    except TelegramError:
+        admin = False
+    try:
         if 'task id' in user_data:
             task_id = user_data['task id']
         else:
             task_id = int(_get_task_id(msg_text))
-
-        success = handler.close_task(task_id, chat_id, user_id)
+        success = handler.close_task(task_id, chat_id, user_id, admin)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
         return

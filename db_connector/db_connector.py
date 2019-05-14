@@ -103,7 +103,7 @@ class DataBaseConnector:
             raise
         return task_id
 
-    def close_task(self, task_id, chat_id, user_id):
+    def close_task(self, task_id, chat_id, user_id, admin=False):
         """
         Close task if possible
         Also cancels all the connected reminders
@@ -116,16 +116,24 @@ class DataBaseConnector:
         UPDATE tasks
         SET closed = (%s)
         WHERE id = (%s)  AND chat_id = (%s)
-        AND (workers = (%s) OR creator_id = (%s) OR (%s) = ANY(workers))
         AND closed = (%s)
+        '''
+        sql_val = (True, task_id, chat_id, False)
+        if not admin:
+            sql_str += ('AND (workers = (%s) '
+                        'OR creator_id = (%s) OR (%s) = ANY(workers))')
+            sql_val += ([], user_id, user_id)
+
+        sql_str += '''
         RETURNING *
-        )
+        ), rem AS (
         UPDATE reminders
         SET canceled = (%s)
-        WHERE task_id IN (SELECT id from src)
+        WHERE task_id IN (SELECT id FROM src)
+        )
+        SELECT id FROM src
         '''
-        sql_val = (True, task_id, chat_id, [], user_id, user_id, False, True)
-
+        sql_val += (True, )
         try:
             update_res = self._commit(sql_str, sql_val)
         except (ValueError, ConnectionError):  # Pass the exception up
