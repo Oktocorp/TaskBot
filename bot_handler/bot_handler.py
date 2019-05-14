@@ -1,9 +1,9 @@
 import os
 import locale
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 
 import logger
-from bot_handler import conversations, response
+from bot_handler import conversations, response, reminders
 
 
 class BotHandler:
@@ -16,14 +16,10 @@ class BotHandler:
         self.dp = self.updater.dispatcher
 
         # Answer on different commands
+        self.dp.add_handler(conversations.act_handler)
         self.dp.add_handler(CommandHandler('add', response.add_task))
         self.dp.add_handler(CommandHandler('close', response.close_task))
         self.dp.add_handler(CommandHandler('dl', response.update_deadline))
-        self.dp.add_handler(CallbackQueryHandler(
-            response.inline_calendar_handler, pass_user_data=True))
-        self.dp.add_handler(
-            MessageHandler(Filters.regex(r'\d{1,2}:\d{2}'), response.get_time,
-                           pass_user_data=True))
         self.dp.add_handler(CommandHandler(
             'free', lambda update, context: response.get_list(
                 update, context, free_only=True)))
@@ -37,7 +33,13 @@ class BotHandler:
         self.dp.add_handler(CommandHandler('take', response.take_task))
         self.dp.add_handler(CommandHandler('no_dl', response.rem_deadline))
         self.dp.add_handler(CommandHandler('mark', response.set_marked_status))
-        self.dp.add_handler(conversations.act_handler)
+
+        self.dp.add_handler(CommandHandler('rem', reminders.get_list))
+
+        self.dp.add_handler(CallbackQueryHandler(
+            reminders.remove_reminder, pattern='^(cr:[\d]+)$'))
+        self.dp.add_handler(CallbackQueryHandler(
+            reminders.remove_msg, pattern=f'^({reminders.CLOSE_MSG})$'))
 
         # Log all errors
         self.log = logger.get_logger(__name__)
@@ -53,6 +55,8 @@ class BotHandler:
     def start(self):
         """Start the bot."""
         self.updater.start_polling()
+        self.updater.job_queue.run_repeating(reminders.send_reminders,
+                                             interval=60, first=0)
         self.updater.idle()
 
     def _localize(self):
