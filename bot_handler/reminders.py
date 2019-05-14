@@ -3,7 +3,7 @@ import re
 from datetime import datetime, timezone
 
 from telegram import (InlineKeyboardButton, InlineKeyboardMarkup,
-                      ReplyKeyboardRemove, ParseMode)
+                      ReplyKeyboardRemove, ParseMode, ForceReply)
 from telegram_calendar_keyboard import calendar_keyboard
 
 import db_connector
@@ -37,13 +37,15 @@ def reminder_cal_handler(update, context):
             return end_conversation(context)
 
         context.user_data['datetime'] = full_date
+        user_name = update.callback_query.from_user.username
         update.message.bot.delete_message(update.message.chat.id,
                                           update.message.message_id)
-        msg = (f'Вы выбрали дату {full_date.strftime("%d/%m/%Y")}\n'
+        msg = (f'@{user_name}, '
+               f'Вы выбрали дату {full_date.strftime("%d/%m/%Y")}\n'
                'Введите время в формате \"hh:mm\"\n')
         update.message.bot.sendMessage(
             update.message.chat.id, msg,
-            reply_markup=ReplyKeyboardRemove(selective=True))
+            reply_markup=ForceReply(selective=True))
         return TYPING_REMIND_TIME
 
 
@@ -77,14 +79,16 @@ def get_rem_time(update, context):
             success = handler.create_reminder(task_id, user_id, date_time)
 
     except (ValueError, AttributeError, ConnectionError):
-        update.message.reply_text(_ERR_MSG, disable_notification=True)
+        update.message.reply_text(_ERR_MSG, disable_notification=True,
+                                  reply_markup=ReplyKeyboardRemove(
+                                      selective=True))
         return end_conversation(context)
-
     if success:
         msg = 'Напоминание успешно установлено'
-        update.message.reply_text(msg, disable_notification=True)
     else:
-        update.message.reply_text(_ERR_MSG, disable_notification=True)
+        msg = _ERR_MSG
+    update.message.reply_text(msg, disable_notification=True,
+                              reply_markup=ReplyKeyboardRemove(selective=True))
 
     return end_conversation(context)
 
@@ -200,6 +204,11 @@ def get_list(update, context):
     """Sends user's reminders list"""
     chat = update.message.chat
     user_id = update.message.from_user.id
+    if chat.id != user_id:
+        msg = 'Управление Вашими напоминаниями доступно в личном диалоге'
+        update.message.reply_text(msg)
+        return
+
     try:
         handler = db_connector.DataBaseConnector()
         rems = handler.get_user_reminders(user_id)
