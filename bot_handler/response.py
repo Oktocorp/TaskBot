@@ -28,6 +28,11 @@ def _get_task_id(text):
     return id_str
 
 
+def end_conversation(context):
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
 # todo: Adequate start message
 def start(update, context):
     """Send a message when the command /start is issued."""
@@ -88,11 +93,7 @@ def close_task(update, context):
         update.message.reply_text('Задание успешно закрыто.',
                                   disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove())
-    user_data = context.user_data
-    if 'task id' in user_data:
-        del user_data['task id']
-    user_data.clear()
-    return ConversationHandler.END
+    return end_conversation(context)
 
 
 def update_deadline(update, context):
@@ -115,7 +116,7 @@ def update_deadline(update, context):
                    or not task_info['workers'])
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        return ConversationHandler.END
+        return end_conversation(context)
 
     if not success:
         update.message.reply_text('Вы не можете установить срок этому заданию.',
@@ -150,13 +151,13 @@ def deadline_cal_handler(update, context):
         except (ValueError, ConnectionError, KeyError):
             update.message.reply_text('Извините, не получилось.',
                                       reply_markup=ReplyKeyboardRemove())
-            return ConversationHandler.END
+            return end_conversation(context)
         if not success:
             update.message.reply_text('Вы не можете установить ' +
                                       'срок этому заданию.',
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
-            return ConversationHandler.END
+            return end_conversation(context)
         else:
             user_data['deadline'] = full_date
             update.message.bot.delete_message(update.message.chat.id,
@@ -201,7 +202,7 @@ def get_dl_time(update, context):
 
     except (ValueError, ConnectionError, AttributeError):
         update.message.reply_text(_ERR_MSG)
-    return ConversationHandler.END
+    return end_conversation(context)
 
 
 def get_list(update, context, for_user=False, free_only=False):
@@ -296,8 +297,7 @@ def take_task(update, context):
         success = handler.assign_task(task_id, chat_id, user_id, [user_id])
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        user_data.clear()
-        return ConversationHandler.END
+        return end_conversation(context)
 
     if not success:
         update.message.reply_text('Вы не можете взять это задание.',
@@ -305,8 +305,7 @@ def take_task(update, context):
     else:
         update.message.reply_text('Задание захвачено.',
                                   reply_markup=ReplyKeyboardRemove())
-    user_data.clear()
-    return ConversationHandler.END
+    return end_conversation(context)
 
 
 def ret_task(update, context):
@@ -327,8 +326,7 @@ def ret_task(update, context):
         success = handler.rem_worker(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        user_data.clear()
-        return ConversationHandler.END
+        return end_conversation(context)
 
     if not success:
         update.message.reply_text('Вы не можете вернуть это задание.',
@@ -336,7 +334,7 @@ def ret_task(update, context):
     else:
         update.message.reply_text('Вы отказались от задания.',
                                   reply_markup=ReplyKeyboardRemove())
-    return ConversationHandler.END
+    return end_conversation(context)
 
 
 def rem_deadline(update, context):
@@ -358,8 +356,7 @@ def rem_deadline(update, context):
         success = handler.set_deadline(task_id, chat_id, user_id)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        user_data.clear()
-        return ConversationHandler.END
+        return end_conversation(context)
     if not success:
         update.message.reply_text('Вы не можете отменить срок выполнения '
                                   'этого задания.',
@@ -367,8 +364,7 @@ def rem_deadline(update, context):
     else:
         update.message.reply_text('Срок выполнения отменен.',
                                   reply_markup=ReplyKeyboardRemove())
-    user_data.clear()
-    return ConversationHandler.END
+    return end_conversation(context)
 
 
 def done(update, context):
@@ -376,8 +372,7 @@ def done(update, context):
     msg = update.message.reply_text('Принято', disable_notification=True,
                                     reply_markup=ReplyKeyboardRemove())
     update.message.bot.delete_message(update.message.chat.id, msg.message_id)
-    context.user_data.clear()
-    return ConversationHandler.END
+    return end_conversation(context)
 
 
 def set_marked_status(update, context):
@@ -399,8 +394,7 @@ def set_marked_status(update, context):
         success = handler.set_marked_status(task_id, chat_id, user_id, marked)
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        user_data.clear()
-        return ConversationHandler.END
+        return end_conversation(context)
     if not success:
         if marked:
             update.message.reply_text('Вы не можете отметить это задание.',
@@ -420,8 +414,7 @@ def set_marked_status(update, context):
             update.message.reply_text('Отметка успешно удалена.',
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
-    user_data.clear()
-    return ConversationHandler.END
+    return end_conversation(context)
 
 
 def act_task(update, context):
@@ -440,7 +433,7 @@ def act_task(update, context):
             update.message.reply_text('Вы не можете управлять этим заданием.',
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
-            return ConversationHandler.END
+            return end_conversation(context)
 
         if task_chat.type == 'private':
             is_admin = False
@@ -501,5 +494,5 @@ def act_task(update, context):
                                   reply_markup=markup)
     except (ValueError, ConnectionError, TelegramError):
         update.message.reply_text(_ERR_MSG)
-        return ConversationHandler.END
+        return end_conversation(context)
     return CHOOSING_COMMAND

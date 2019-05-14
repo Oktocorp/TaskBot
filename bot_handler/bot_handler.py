@@ -34,8 +34,12 @@ class BotHandler:
         self.dp.add_handler(CommandHandler('no_dl', response.rem_deadline))
         self.dp.add_handler(CommandHandler('mark', response.set_marked_status))
 
+        self.dp.add_handler(CommandHandler('rem', reminders.get_list))
+
         self.dp.add_handler(CallbackQueryHandler(
-            reminders.close_btn, pattern=f'^({reminders.CLOSE_MSG})$'))
+            reminders.remove_reminder, pattern='^(cr:[\d]+)$'))
+        self.dp.add_handler(CallbackQueryHandler(
+            reminders.remove_msg, pattern=f'^({reminders.CLOSE_MSG})$'))
 
         # Log all errors
         self.log = logger.get_logger(__name__)

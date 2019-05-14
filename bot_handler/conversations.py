@@ -5,7 +5,7 @@ from bot_handler import response, reminders
 act_handler = ConversationHandler(
     entry_points=[MessageHandler(Filters.regex('^(/act_[\d]+)'),
                                  response.act_task),
-                  CallbackQueryHandler(reminders.reset_btn,
+                  CallbackQueryHandler(reminders.reset_reminder,
                                        pattern='^(pr:[\d]+)$')],
 
     states=
