@@ -13,7 +13,7 @@ DEF_TZ = pytz.timezone('Europe/Moscow')
 _ERR_MSG = 'Извините, произошла ошибка'
 
 CHOOSING_COMMAND, CHOOSING_DL_DATE, CHOOSING_REMIND_DATE, \
-    TYPING_REMIND_TIME, TYPING_DL_TIME = range(5)
+    TYPING_REMIND_TIME, TYPING_DL_TIME, TYPING_TASK = range(6)
 
 
 def _rem_command(text):
@@ -46,22 +46,30 @@ def help_msg(update, context):
                               disable_notification=True)
 
 
+def new_task(update, context):
+    """Initiate task creation process"""
+    update.message.reply_text('Введите текст задачи',
+                              disable_notification=True)
+    return TYPING_TASK
+
+
 def add_task(update, context):
     """Adds new task to the list"""
-    handler = db_connector.DataBaseConnector()
     chat_id = update.message.chat.id
     creator_id = update.message.from_user.id
-    msg_text = _rem_command(update.message.text)
+    msg_text = update.message.text
     if not msg_text:
         update.message.reply_text('Вы не можете добавить пустое задание.')
-        return
+        return end_conversation(context)
     try:
+        handler = db_connector.DataBaseConnector()
         task_id = handler.add_task(chat_id, creator_id, msg_text)
+        context.user_data['task id'] = task_id
     except (ValueError, ConnectionError):
         update.message.reply_text(_ERR_MSG)
-        return
-    # todo: use task_id to send launch task menu
-    update.message.reply_text('Задание успешно добавлено.')
+        return end_conversation(context)
+    update.message.reply_text('Задание успешно добавлено')
+    return act_task(update, context, newly_created=True)
 
 
 def close_task(update, context):
@@ -424,16 +432,20 @@ def set_marked_status(update, context):
     return end_conversation(context)
 
 
-def act_task(update, context):
+def act_task(update, context, newly_created=False):
     handler = db_connector.DataBaseConnector()
-    msg_text = _rem_command(update.message.text)
     chat_id = update.message.chat.id
     user_id = update.message.from_user.id
+    user_data = context.user_data
     try:
-        task_id = int(_get_task_id(msg_text))
-        context.user_data['task id'] = task_id
+        if 'task id' not in user_data:
+            msg_text = _rem_command(update.message.text)
+            task_id = int(_get_task_id(msg_text))
+            user_data['task id'] = task_id
+        else:
+            task_id = user_data['task id']
         task_info = handler.task_info(task_id)
-        context.user_data['chat id'] = task_info['chat_id']
+        user_data['chat id'] = task_info['chat_id']
         task_chat = update.message.bot.get_chat(task_info['chat_id'])
 
         if task_chat.id != chat_id and user_id not in task_info['workers']:
@@ -453,7 +465,7 @@ def act_task(update, context):
         if (user_id in task_info['workers'] or is_admin
                 or task_info['chat_id'] == chat_id and not task_info['workers']
                 or task_info['creator_id'] == user_id):
-            buttons[-1] += ['Закрыть']
+            buttons[-1] += ['Закрыть задачу']
             cols += 1
 
         if user_id in task_info['workers']:
@@ -464,7 +476,7 @@ def act_task(update, context):
             if not cols % 2:
                 buttons.append([])
             cols += 1
-            buttons[-1] += ["Взять"]
+            buttons[-1] += ['Взять']
 
         if task_info['creator_id'] == user_id or is_admin:
             if task_info['deadline']:
@@ -497,7 +509,11 @@ def act_task(update, context):
                                      selective=True,
                                      one_time_keyboard=True,
                                      resize_keyboard=False)
-        update.message.reply_text("Выберите действие с задачей",
+        if newly_created:
+            msg = 'Вы можете выбрать действие для этой задачи'
+        else:
+            msg = 'Выберите действие с задачей'
+        update.message.reply_text(msg,
                                   reply_markup=markup)
     except (ValueError, ConnectionError, TelegramError):
         update.message.reply_text(_ERR_MSG)

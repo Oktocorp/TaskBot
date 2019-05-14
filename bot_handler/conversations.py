@@ -6,13 +6,15 @@ act_handler = ConversationHandler(
     entry_points=[MessageHandler(Filters.regex('^(/act_[\d]+)'),
                                  response.act_task),
                   CallbackQueryHandler(reminders.reset_reminder,
-                                       pattern='^(pr:[\d]+)$')],
+                                       pattern='^(pr:[\d]+)$'),
+                  MessageHandler(Filters.regex('^(/add)'),
+                                 response.new_task)],
 
     states=
     {
        response.CHOOSING_COMMAND: [
                            MessageHandler(
-                                  Filters.regex('^Закрыть$'),
+                                  Filters.regex('^Закрыть задачу$'),
                                   response.close_task,
                                   pass_user_data=True),
                            MessageHandler(
@@ -54,14 +56,21 @@ act_handler = ConversationHandler(
                              ],
 
        response.TYPING_DL_TIME: [
-                            MessageHandler(Filters.regex(r'\d{1,2}:\d{2}'),
-                                           response.get_dl_time,
-                                           pass_user_data=True)
+                            MessageHandler(
+                                   Filters.regex(r'\d{1,2}:\d{2}'),
+                                   response.get_dl_time,
+                                   pass_user_data=True)
                              ],
        response.TYPING_REMIND_TIME: [
-                            MessageHandler(Filters.text, reminders.get_rem_time,
-                                           pass_user_data=True)
-                             ]
+                            MessageHandler(
+                                   Filters.text, reminders.get_rem_time,
+                                   pass_user_data=True)
+                             ],
+       response.TYPING_TASK: [
+                            MessageHandler(
+                                   Filters.text, response.add_task,
+                                   pass_user_data=True)
+       ]
     },
     fallbacks=[MessageHandler(Filters.regex('^Покинуть меню$'), response.done,
                               pass_user_data=True)],
