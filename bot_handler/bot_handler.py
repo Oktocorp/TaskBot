@@ -18,8 +18,6 @@ class BotHandler:
         # Answer on different commands
         self.dp.add_handler(conversations.act_handler)
         self.dp.add_handler(CommandHandler('add', response.add_task))
-        self.dp.add_handler(CommandHandler('close', response.close_task))
-        self.dp.add_handler(CommandHandler('dl', response.update_deadline))
         self.dp.add_handler(CommandHandler(
             'free', lambda update, context: response.get_list(
                 update, context, free_only=True)))
@@ -28,11 +26,7 @@ class BotHandler:
         self.dp.add_handler(CommandHandler(
             'my', lambda update, context: response.get_list(
                 update, context, for_user=True)))
-        self.dp.add_handler(CommandHandler('return', response.ret_task))
         self.dp.add_handler(CommandHandler('start', response.start))
-        self.dp.add_handler(CommandHandler('take', response.take_task))
-        self.dp.add_handler(CommandHandler('no_dl', response.rem_deadline))
-        self.dp.add_handler(CommandHandler('mark', response.set_marked_status))
 
         self.dp.add_handler(CommandHandler('rem', reminders.get_list))
 

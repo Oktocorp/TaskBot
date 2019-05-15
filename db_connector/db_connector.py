@@ -12,14 +12,12 @@ class DataBaseConnector:
         self._conn = None
         self._cur = None
 
-    def _close_conn(self, err=None):
+    def _close_conn(self):
         """Ensure the connection is closed"""
         if self._cur is not None:
             self._cur.close()
         if self._conn is not None:
             self._conn.close()
-        if err:
-            self._log.warning('Unable to execute SQL', err)
 
     def _commit(self, *args, fetch_data=False):
         """
@@ -32,8 +30,9 @@ class DataBaseConnector:
         self._conn = None
         try:
             self._conn = psycopg2.connect(self._db_url, sslmode='require')
-        except (Exception, psycopg2.DatabaseError) as err:
-            self._close_conn(err)
+        except (Exception, psycopg2.DatabaseError):
+            self._close_conn()
+            self._log.exception()
             raise ConnectionError('Unable to connect to the DataBase')
 
         self._cur = self._conn.cursor()
@@ -43,8 +42,9 @@ class DataBaseConnector:
             self._conn.commit()
             if fetch_data:
                 row = self._cur.fetchone()
-        except (Exception, psycopg2.DatabaseError) as err:
-            self._close_conn(err)
+        except (Exception, psycopg2.DatabaseError):
+            self._close_conn()
+            self._log.exception()
             raise ValueError('Unable to execute SQL')
         rows_num = self._cur.rowcount
         self._close_conn()
@@ -64,7 +64,8 @@ class DataBaseConnector:
             self._conn = psycopg2.connect(self._db_url, sslmode='require',
                                           cursor_factory=RealDictCursor)
         except (Exception, psycopg2.DatabaseError) as err:
-            self._close_conn(err)
+            self._close_conn()
+            self._log.exception()
             raise ConnectionError('Unable to connect to the DataBase', err)
 
         self._cur = self._conn.cursor()
@@ -72,7 +73,8 @@ class DataBaseConnector:
             self._cur.execute(*args)
             rows = self._cur.fetchall()
         except (Exception, psycopg2.DatabaseError) as err:
-            self._close_conn(err)
+            self._close_conn()
+            self._log.exception()
             raise ValueError('Unable to execute SQL', err)
 
         self._close_conn()

@@ -14,6 +14,7 @@ from bot_handler.response import DEF_TZ, CHOOSING_REMIND_DATE, \
 #  callback data on close message button
 CLOSE_MSG = 'rem_msg'
 _ERR_MSG = 'Извините, операция не удалась'
+_LOGGER = logger.get_logger(__name__)
 
 
 def add_reminder(update, context):
@@ -54,14 +55,19 @@ def get_rem_time(update, context):
     user_id = update.message.from_user.id
     handler = db_connector.DataBaseConnector()
     try:
-        time = re.search(r'\d{1,2}:\d{2}', update.message.text).group()
-
         date_time = user_data['datetime']
-        hours = int(time[:time.find(':')].strip())
-        minutes = int(time[time.find(':') + 1:].strip())
+        try:
+            time = re.search(r'\d{1,2}:\d{2}', update.message.text).group()
+            hours = int(time[:time.find(':')].strip())
+            minutes = int(time[time.find(':') + 1:].strip())
 
-        date_time = date_time.replace(hour=hours, minute=minutes, second=0,
-                                      tzinfo=None)
+            date_time = date_time.replace(hour=hours, minute=minutes, second=0,
+                                          tzinfo=None)
+        except (ValueError, AttributeError):
+            msg = 'Извините, введенное Вами время не соответствует формату'
+            update.message.reply_text(msg, disable_notification=True)
+            return end_conversation(update, context)
+
         date_time = DEF_TZ.localize(date_time)
         now = datetime.now(timezone.utc)
         if now > date_time:
@@ -79,14 +85,15 @@ def get_rem_time(update, context):
             success = handler.create_reminder(task_id, user_id, date_time)
 
     except (ValueError, AttributeError, ConnectionError):
-        update.message.reply_text(_ERR_MSG, disable_notification=True,
-                                  reply_markup=ReplyKeyboardRemove(
-                                      selective=True))
+        update.message.reply_text(
+            _ERR_MSG, disable_notification=True,
+            reply_markup=ReplyKeyboardRemove(selective=True))
+        _LOGGER.exception('Unable to process reminder trigger time')
         return end_conversation(update, context)
     if success:
         msg = 'Напоминание успешно установлено'
     else:
-        msg = _ERR_MSG
+        msg = 'Извините, не удалось установить напоминание'
     update.message.reply_text(msg, disable_notification=True,
                               reply_markup=ReplyKeyboardRemove(selective=True))
 
@@ -148,18 +155,18 @@ def send_reminders(context):
     rems_to_close = list()
     for rem in reminders:
         try:
-            resp_text, markup = _compile_rem(rem, cancel_rem=False, show_dl=True)
+            resp_text, markup = _compile_rem(rem, cancel_rem=False,
+                                             show_dl=True)
             context.message = context.bot.send_message(
                  chat_id=rem['user_id'], text=resp_text,
                  reply_markup=markup, parse_mode=ParseMode.HTML)
             rems_to_close.append(rem['id'])
-        except (ValueError, ConnectionError, KeyError) as err:
-            logger.get_logger(__name__).warning(
-                'Unable to process reminder', err)
+        except (ValueError, ConnectionError, KeyError):
+            _LOGGER.exception('Unable to process reminder')
     try:
         handler.close_reminders(rems_to_close)
-    except (ValueError, ConnectionError) as err:
-        logger.get_logger(__name__).warning('Unable to close reminders', err)
+    except (ValueError, ConnectionError):
+        _LOGGER.exception('Unable to close reminders')
 
 
 def reset_reminder(update, context):
@@ -173,8 +180,8 @@ def reset_reminder(update, context):
         update.message.bot.delete_message(update.message.chat.id,
                                           update.message.message_id)
         return add_reminder(update, context)
-    except (ValueError, KeyError, AttributeError) as err:
-        logger.get_logger(__name__).warning('Unable to reset reminder', err)
+    except (ValueError, KeyError, AttributeError):
+        _LOGGER.exception('Unable to reset reminder')
         return end_conversation(update, context)
 
 
@@ -188,7 +195,7 @@ def remove_reminder(update, context):
         update.message.bot.delete_message(update.message.chat.id,
                                           update.message.message_id)
     except (ValueError, AttributeError) as err:
-        logger.get_logger(__name__).warning('Unable to close reminder', err)
+        _LOGGER.exception('Unable to close reminder')
 
 
 def remove_msg(update, context):
@@ -197,7 +204,7 @@ def remove_msg(update, context):
         update.message.bot.delete_message(update.message.chat.id,
                                           update.message.message_id)
     except (ValueError, AttributeError) as err:
-        logger.get_logger(__name__).warning('Unable to remove message', err)
+        _LOGGER.exception('Unable to remove message')
 
 
 def get_list(update, context):
@@ -215,6 +222,7 @@ def get_list(update, context):
         rems.sort(key=lambda x: x['datetime'])
     except (ValueError, ConnectionError, KeyError):
         update.message.reply_text(_ERR_MSG)
+        _LOGGER.exception('Unable to fetch reminders')
         return
 
     if not rems:
@@ -229,5 +237,4 @@ def get_list(update, context):
                 chat_id=rem['user_id'], text=resp_text,
                 reply_markup=markup, parse_mode=ParseMode.HTML)
         except (ValueError, ConnectionError, KeyError) as err:
-            logger.get_logger(__name__).warning(
-                'Unable to process reminder', err)
+            _LOGGER.exception('Unable to process reminder')
