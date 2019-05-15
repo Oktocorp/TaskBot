@@ -34,7 +34,7 @@ def reminder_cal_handler(update, context):
             update.message.bot.sendMessage(
                 update.message.chat.id, msg,
                 reply_markup=ReplyKeyboardRemove(selective=True))
-            return end_conversation(context)
+            return end_conversation(update, context)
 
         context.user_data['datetime'] = full_date
         user_name = update.callback_query.from_user.username
@@ -69,7 +69,7 @@ def get_rem_time(update, context):
             update.message.bot.sendMessage(
                 update.message.chat.id, msg,
                 reply_markup=ReplyKeyboardRemove(selective=True))
-            return end_conversation(context)
+            return end_conversation(update, context)
 
         if 'reset' in user_data:
             rem_id = user_data['rem id']
@@ -82,7 +82,7 @@ def get_rem_time(update, context):
         update.message.reply_text(_ERR_MSG, disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove(
                                       selective=True))
-        return end_conversation(context)
+        return end_conversation(update, context)
     if success:
         msg = 'Напоминание успешно установлено'
     else:
@@ -90,7 +90,7 @@ def get_rem_time(update, context):
     update.message.reply_text(msg, disable_notification=True,
                               reply_markup=ReplyKeyboardRemove(selective=True))
 
-    return end_conversation(context)
+    return end_conversation(update, context)
 
 
 def _compile_rem(rem, cancel_rem=True, show_dl=False, show_dt=False):
@@ -175,7 +175,7 @@ def reset_reminder(update, context):
         return add_reminder(update, context)
     except (ValueError, KeyError, AttributeError) as err:
         logger.get_logger(__name__).warning('Unable to reset reminder', err)
-        return end_conversation(context)
+        return end_conversation(update, context)
 
 
 def remove_reminder(update, context):

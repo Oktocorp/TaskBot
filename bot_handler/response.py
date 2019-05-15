@@ -67,8 +67,9 @@ def help_msg(update, context):
 
 def new_task(update, context):
     """Initiate task creation process"""
-    update.message.reply_text('Введите текст задачи',
-                              disable_notification=True)
+    update.message.reply_text(
+        'Введите текст задачи', disable_notification=True,
+        reply_markup=ForceReply(selective=True))
     return TYPING_TASK
 
 
@@ -527,14 +528,12 @@ def act_task(update, context, newly_created=False):
 
         markup = ReplyKeyboardMarkup(buttons,
                                      selective=True,
-                                     one_time_keyboard=True,
-                                     resize_keyboard=False)
+                                     resize_keyboard=True)
         if newly_created:
             msg = 'Вы можете выбрать действие для этой задачи'
         else:
             msg = 'Выберите действие с задачей'
-        update.message.reply_text(msg,
-                                  reply_markup=markup)
+        update.message.reply_text(msg, reply_markup=markup)
     except (ValueError, ConnectionError, TelegramError):
         update.message.reply_text(_ERR_MSG)
         return end_conversation(update, context)

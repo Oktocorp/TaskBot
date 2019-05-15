@@ -8,7 +8,10 @@ act_handler = ConversationHandler(
                   CallbackQueryHandler(reminders.reset_reminder,
                                        pattern='^(pr:[\d]+)$'),
                   MessageHandler(Filters.regex('^(/add)'),
-                                 response.new_task)],
+                                 response.new_task),
+                  MessageHandler(Filters.text & (~ Filters.reply),
+                                 response.add_task)
+                  ],
 
     states=
     {
@@ -40,6 +43,10 @@ act_handler = ConversationHandler(
                            MessageHandler(
                                   Filters.regex('^Создать напоминание$'),
                                   reminders.add_reminder,
+                                  pass_user_data=True),
+                           MessageHandler(
+                                  Filters.regex('^Покинуть меню$'),
+                                  response.done,
                                   pass_user_data=True)
                            ],
 
@@ -72,7 +79,14 @@ act_handler = ConversationHandler(
                                    pass_user_data=True)
        ]
     },
-    fallbacks=[MessageHandler(Filters.regex('^Покинуть меню$'), response.done,
-                              pass_user_data=True)],
-    allow_reentry=True,
+    fallbacks=[
+                  MessageHandler(Filters.regex('^(/act_[\d]+)'),
+                                 response.act_task),
+                  CallbackQueryHandler(reminders.reset_reminder,
+                                       pattern='^(pr:[\d]+)$'),
+                  MessageHandler(Filters.regex('^(/add)'),
+                                 response.new_task),
+                  MessageHandler(Filters.text & (~ Filters.reply),
+                                 response.add_task)
+                  ],
 )
