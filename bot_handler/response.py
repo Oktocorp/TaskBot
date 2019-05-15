@@ -27,17 +27,18 @@ def _get_task_id(text):
 
 
 def _clean_msg(update, context):
-    try:
-        for msg_id in context.chat_data['rem msg']:
-            update.message.bot.delete_message(update.message.chat.id,
-                                              msg_id)
-    except (ValueError, KeyError, TelegramError):
-        _LOGGER.exception('Unable to delete messages')
+    if 'rem msg' not in context.chat_data:
+        return
+    for msg_id in context.chat_data['rem msg']:
+        try:
+            update.message.bot.delete_message(update.message.chat.id, msg_id)
+        except (ValueError, KeyError, TelegramError):
+            _LOGGER.exception('Unable to delete messages')
+    context.chat_data['rem msg'].clear()
 
 
 def end_conversation(update, context):
-    if 'rem msg' in context.chat_data:
-        _clean_msg(update, context)
+    _clean_msg(update, context)
     context.user_data.clear()
     return ConversationHandler.END
 
