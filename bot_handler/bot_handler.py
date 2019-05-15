@@ -1,7 +1,7 @@
 import os
 import locale
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, \
-    PicklePersistence
+from telegram.ext import (Updater, CommandHandler, CallbackQueryHandler,
+                          PicklePersistence)
 
 import logger
 from bot_handler import conversations, response, reminders
@@ -32,13 +32,14 @@ class BotHandler:
             'my', lambda update, context: response.get_list(
                 update, context, for_user=True)))
         self.dp.add_handler(CommandHandler('start', response.start))
-
         self.dp.add_handler(CommandHandler('rem', reminders.get_list))
 
         self.dp.add_handler(CallbackQueryHandler(
             reminders.remove_reminder, pattern='^(cr:[\d]+)$'))
         self.dp.add_handler(CallbackQueryHandler(
             reminders.remove_msg, pattern=f'^({reminders.CLOSE_MSG})$'))
+        self.dp.add_handler(CallbackQueryHandler(
+            response.list_nav, pattern='^nav:'))
 
         # Log all errors
         self.log = logger.get_logger(__name__)

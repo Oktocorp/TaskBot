@@ -8,7 +8,8 @@ act_handler = ConversationHandler(
         MessageHandler(Filters.regex('^(/act_[\d]+)'), response.act_task),
         CallbackQueryHandler(reminders.reset_reminder, pattern='^(pr:[\d]+)$'),
         MessageHandler(Filters.regex('^(/add)'), response.new_task),
-        MessageHandler(Filters.text & (~Filters.reply), response.add_task)
+        MessageHandler(Filters.text & (~Filters.reply), response.add_task),
+        MessageHandler(Filters.regex('^Покинуть меню$'), response.done),
     ],
     states=
     {
@@ -26,9 +27,7 @@ act_handler = ConversationHandler(
             MessageHandler(Filters.regex('^Отметить|Снять отметку$'),
                            response.set_marked_status, pass_user_data=True),
             MessageHandler(Filters.regex('^Создать напоминание$'),
-                           reminders.add_reminder, pass_user_data=True),
-            MessageHandler(Filters.regex('^Покинуть меню$'),
-                           response.done, pass_user_data=True)
+                           reminders.add_reminder, pass_user_data=True)
         ],
         response.CHOOSING_DL_DATE: [
             CallbackQueryHandler(response.deadline_cal_handler,
@@ -52,6 +51,7 @@ act_handler = ConversationHandler(
     },
     fallbacks=
     [
+        MessageHandler(Filters.regex('^Покинуть меню$'), response.done),
         MessageHandler(Filters.regex('^(/act_[\d]+)'), response.act_task),
         CallbackQueryHandler(reminders.reset_reminder, pattern='^(pr:[\d]+)$'),
         MessageHandler(Filters.regex('^(/add)'), response.new_task),

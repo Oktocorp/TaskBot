@@ -3,7 +3,8 @@ import db_connector
 import re
 from datetime import datetime
 from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
-                      ForceReply, TelegramError)
+                      ForceReply, TelegramError, InlineKeyboardButton,
+                      InlineKeyboardMarkup)
 from telegram.ext import ConversationHandler
 import html
 from telegram_calendar_keyboard import calendar_keyboard
@@ -29,12 +30,12 @@ def _get_task_id(text):
 def _clean_msg(update, context):
     if 'rem msg' not in context.chat_data:
         return
-    for msg_id in context.chat_data['rem msg']:
+    while context.chat_data['rem msg']:
+        msg_id = context.chat_data['rem msg'].pop()
         try:
             update.message.bot.delete_message(update.message.chat.id, msg_id)
         except (ValueError, KeyError, TelegramError):
-            _LOGGER.exception('Unable to delete messages')
-    context.chat_data['rem msg'].clear()
+            _LOGGER.exception(f'Unable to delete message')
 
 
 def end_conversation(update, context):
@@ -228,6 +229,77 @@ def get_dl_time(update, context):
     return end_conversation(update, context)
 
 
+def _compile_list(rows, chat, bot, for_user=False):
+    """
+    Creates list of task pages for the chat
+    :raises TelegramError if some chat does not exist
+    :raises Value error if rows are corrupted
+    :returns List of strings with task info
+    """
+    lines_lim = 20
+    line_len = 30
+    task_lst = ['']
+    cur_lines = 0
+    for row in (sorted(rows, key=_row_sort_key)):
+        task_chat_id = row['chat_id'] if 'chat_id' in row else chat.id
+        resp_text = ''
+        task_lines = 0
+        task_mark = u'<b>[ ! ]</b> ' if row['marked'] else u'\u25b8 '
+        resp_text += f'{task_mark} {html.escape(row["task_text"])}\n\n'
+        task_lines += len(resp_text) // line_len
+        task_lines += 1 if len(resp_text) % line_len else 0
+        if for_user:
+            try:
+                task_chat = bot.get_chat(task_chat_id)
+                if task_chat.title:
+                    resp_text += f'<b>Чат:</b> {task_chat.title}\n'
+                    task_lines += 1
+            except TelegramError:
+                _LOGGER.exception('Could not get chat info')
+
+        # Parse workers list
+        if row['workers']:
+            workers = ''
+            for w_id in row['workers']:
+                try:
+                    w_info = chat.get_member(w_id)
+                    f_name = w_info['user']['first_name']
+                    l_name = w_info['user']['last_name']
+                    username = w_info['user']['username']
+                    tg_link = f'https://t.me/{username}'
+                    workers += f'<a href="{tg_link}">{l_name} {f_name}</a>\n'
+                except TelegramError:  # Worker is no longer in this chat
+                    try:
+                        handler = db_connector.DataBaseConnector()
+                        handler.rem_worker(row['id'], task_chat_id, w_id)
+                    except (ValueError, ConnectionError):
+                        _LOGGER.exception('Could not remove invalid worker')
+            if workers:
+                resp_text += f'<b>Исполнитель:</b> {workers}'
+                task_lines += 1
+
+        # Localize UTC time
+        if row['deadline']:
+            dl_format = ' %a %d.%m'
+            if row['deadline'].second == 0:  # if time is not default
+                dl_format += ' %H:%M'
+            dl = row['deadline'].astimezone(DEF_TZ).strftime(dl_format)
+            resp_text += f'<b>Срок:</b> <code>{dl}</code>\n'
+            task_lines += 1
+
+        resp_text += f'<b>Действия:</b>  /act_{row["id"]}\n'
+        resp_text += u'-' * 16 + '\n\n'
+        task_lines += 2
+
+        if cur_lines and cur_lines + task_lines > lines_lim:
+            task_lst.append(resp_text)
+            cur_lines = task_lines
+        else:
+            task_lst[-1] += resp_text
+            cur_lines += task_lines
+    return task_lst
+
+
 def get_list(update, context, for_user=False, free_only=False):
     """Sends the task list"""
     chat = update.message.chat
@@ -250,49 +322,89 @@ def get_list(update, context, for_user=False, free_only=False):
         return
 
     if not rows:
-        reps_text = 'Ваш список задач пуст!'
-        update.message.bot.send_message(chat_id=chat.id, text=reps_text,
+        resp_text = 'Ваш список задач пуст!'
+        update.message.bot.send_message(chat_id=chat.id, text=resp_text,
                                         disable_notification=True)
         return
 
-    reps_text = ''
-    for row in (sorted(rows, key=_row_sort_key)):
-        task_mark = u'<b>[ ! ]</b> ' if row['marked'] else u'\u25b8 '
-        reps_text += f'{task_mark} {html.escape(row["task_text"])}\n\n'
-        if for_user:
-            task_chat = update.message.bot.get_chat(row['chat_id'])
-            if task_chat.title:
-                reps_text += f'<b>Чат:</b> {task_chat.title}\n'
+    tasks_lst = _compile_list(rows, chat, update.message.bot, for_user=for_user)
 
-        # Parse workers list
-        if row['workers']:
-            workers = ''
-            for w_id in row['workers']:
-                w_info = chat.get_member(w_id)
-                f_name = w_info['user']['first_name']
-                l_name = w_info['user']['last_name']
-                username = w_info['user']['username']
-                tg_link = f'https://t.me/{username}'
-                workers += f'<a href="{tg_link}">{l_name} {f_name}</a>\n'
+    context.chat_data['pages'] = tasks_lst
+    context.chat_data['page ind'] = 0
+    if len(tasks_lst) > 1:
+        r_nav = 'nav:r'
+        r_text = '>>'
+    else:
+        r_nav = 'nav:-'
+        r_text = '  '
+    cl_nav = 'nav:cl'
+    keyboard = [[InlineKeyboardButton('  ', callback_data='-'),
+                 InlineKeyboardButton('Закрыть', callback_data=cl_nav),
+                 InlineKeyboardButton(r_text, callback_data=r_nav)]]
+    markup = InlineKeyboardMarkup(keyboard)
 
-            reps_text += f'<b>Исполнитель:</b> {workers}'
+    update.message.bot.send_message(
+        chat_id=chat.id, text=tasks_lst[0], parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True, disable_notification=True,
+        reply_markup=markup
+    )
 
-        # Localize UTC time
-        if row['deadline']:
-            dl_format = ' %a %d.%m'
-            if row['deadline'].second == 0:  # if time is not default
-                dl_format += ' %H:%M'
-            dl = row['deadline'].astimezone(DEF_TZ).strftime(dl_format)
-            reps_text += f'<b>Срок:</b> <code>{dl}</code>\n'
 
-        reps_text += f'<b>Действия:</b>  /act_{row["id"]}\n'
-        reps_text += u'-' * 16 + '\n\n'
+def list_nav(update, context):
+    """Parse callback from tasks list and flip pages"""
+    data = update.callback_query.data
+    try:
+        pages = context.chat_data['pages']
+        page_ind = context.chat_data['page ind']
+        total = len(pages)
+        command = data[data.find(':') + 1:]
+    except (IndexError, KeyError, ValueError):
+        _LOGGER.exception('Invalid callback data')
+        return
+    update.message = update.callback_query.message
 
-    new_msg = update.message.bot.send_message(
-        chat_id=chat.id, text=reps_text, parse_mode=ParseMode.HTML,
-        disable_web_page_preview=True, disable_notification=True)
-    context.chat_data['rem msg'] = set()
-    context.chat_data['rem msg'].add(new_msg.message_id)
+    r_nav = 'nav:r'
+    r_text = '>>'
+    l_nav = 'nav:l'
+    l_text = '<<'
+    cl_nav = 'nav:cl'
+    cl_text = 'Закрыть'
+    alter = False
+
+    if command == 'cl':
+        update.message.bot.delete_message(update.message.chat.id,
+                                          update.message.message_id)
+        del context.chat_data['pages']
+        del context.chat_data['page ind']
+        return
+
+    if command == 'l' and page_ind > 0:
+        if page_ind == 1:
+            l_nav = 'nav:-'
+            l_text = '  '
+        alter = True
+        page_ind -= 1
+
+    elif command == 'r' and page_ind < total - 1:
+        if page_ind == total - 2:
+            r_nav = 'nav:-'
+            r_text = '  '
+        alter = True
+        page_ind += 1
+
+    context.bot.answer_callback_query(update.callback_query.id)
+    if alter:
+        keyboard = [[InlineKeyboardButton(l_text, callback_data=l_nav),
+                     InlineKeyboardButton(cl_text, callback_data=cl_nav),
+                     InlineKeyboardButton(r_text, callback_data=r_nav)]]
+        markup = InlineKeyboardMarkup(keyboard)
+        context.chat_data['page ind'] = page_ind
+        update.message.bot.edit_message_text(
+            text=pages[page_ind], chat_id=update.message.chat.id,
+            message_id=update.message.message_id, parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True, disable_notification=True,
+            reply_markup=markup
+        )
 
 
 def _row_sort_key(row):
