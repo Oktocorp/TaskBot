@@ -1,6 +1,7 @@
 import os
 import locale
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, \
+    PicklePersistence
 
 import logger
 from bot_handler import conversations, response, reminders
@@ -10,7 +11,11 @@ class BotHandler:
     def __init__(self):
         # Fetch token from Heroku config var
         token = os.environ['BOT_TOKEN']
-        self.updater = Updater(token, use_context=True)
+
+        # File to store conversation states
+        dump_fname = 'states.pickle'
+        self.updater = Updater(token, use_context=True,
+                               persistence=PicklePersistence(dump_fname))
 
         # Get the dispatcher to register handlers
         self.dp = self.updater.dispatcher

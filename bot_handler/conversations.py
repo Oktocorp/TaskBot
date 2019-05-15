@@ -56,5 +56,7 @@ act_handler = ConversationHandler(
         CallbackQueryHandler(reminders.reset_reminder, pattern='^(pr:[\d]+)$'),
         MessageHandler(Filters.regex('^(/add)'), response.new_task),
         MessageHandler(Filters.text & (~Filters.reply), response.add_task)
-    ]
+    ],
+    name='Task act menu handler',
+    persistent=True
 )
