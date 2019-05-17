@@ -56,10 +56,9 @@ class BotHandler:
 
     def start(self):
         """Start the bot."""
-        # self.updater.start_webhook(listen='0.0.0.0', port=self._port,
-        #                            url_path=self._token)
-        # self.updater.bot.set_webhook(self._app_path + self._token)
-        self.updater.start_polling()
+        self.updater.start_webhook(listen='0.0.0.0', port=self._port,
+                                   url_path=self._token)
+        self.updater.bot.set_webhook(self._app_path + self._token)
         self.updater.job_queue.run_repeating(reminders.send_reminders,
                                              interval=60, first=0)
         self.updater.idle()
