@@ -27,15 +27,18 @@ def _get_task_id(text):
     return id_str
 
 
-def _clean_msg(update, context):
-    if 'rem msg' not in context.chat_data:
-        return
-    while context.chat_data['rem msg']:
-        msg_id = context.chat_data['rem msg'].pop()
-        try:
-            update.message.bot.delete_message(update.message.chat.id, msg_id)
-        except (ValueError, KeyError, TelegramError):
-            _LOGGER.exception(f'Unable to delete message')
+def _clean_msg(update, context, keys=('rem msg',)):
+    for key in keys:
+        if key not in context.chat_data:
+            continue
+        while context.chat_data[key]:
+            try:
+                msg_id = context.chat_data[key].pop()
+                update.message.bot.delete_message(update.message.chat.id, msg_id)
+            except TelegramError:
+                pass
+            except (ValueError, KeyError, AttributeError):
+                _LOGGER.exception(f'Unable to delete message')
 
 
 def end_conversation(update, context):
@@ -331,7 +334,6 @@ def get_list(update, context, for_user=False, free_only=False):
         return
 
     tasks_lst = _compile_list(rows, chat, update.message.bot, for_user=for_user)
-
     context.chat_data['pages'] = tasks_lst
     context.chat_data['page ind'] = 0
     if len(tasks_lst) > 1:
@@ -345,12 +347,13 @@ def get_list(update, context, for_user=False, free_only=False):
                  InlineKeyboardButton('Закрыть', callback_data=cl_nav),
                  InlineKeyboardButton(r_text, callback_data=r_nav)]]
     markup = InlineKeyboardMarkup(keyboard)
-
-    update.message.bot.send_message(
+    _clean_msg(update, context, keys=('rem lst', ))
+    msg = update.message.bot.send_message(
         chat_id=chat.id, text=tasks_lst[0], parse_mode=ParseMode.HTML,
         disable_web_page_preview=True, disable_notification=True,
         reply_markup=markup
     )
+    context.chat_data['rem lst'] = {msg.message_id}
 
 
 def list_nav(update, context):
@@ -358,10 +361,7 @@ def list_nav(update, context):
     data = update.callback_query.data
     try:
         command = data[data.find(':') + 1:]
-        pages = context.chat_data['pages']
-        page_ind = context.chat_data['page ind']
-        total = len(pages)
-    except (IndexError, KeyError, ValueError):
+    except IndexError:
         context.bot.answer_callback_query(update.callback_query.id)
         _LOGGER.exception('Invalid callback data')
         return
@@ -378,8 +378,19 @@ def list_nav(update, context):
     if command == 'cl':
         update.message.bot.delete_message(update.message.chat.id,
                                           update.message.message_id)
-        del context.chat_data['pages']
-        del context.chat_data['page ind']
+        if 'pages' in context.chat_data:
+            del context.chat_data['pages']
+        if 'page ind' in context.chat_data:
+            del context.chat_data['page ind']
+        return
+
+    try:
+        pages = context.chat_data['pages']
+        page_ind = context.chat_data['page ind']
+        total = len(pages)
+    except (KeyError, ValueError):
+        context.bot.answer_callback_query(update.callback_query.id)
+        _LOGGER.exception('Invalid callback data')
         return
 
     if command == 'l' and page_ind > 0:
