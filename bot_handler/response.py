@@ -44,6 +44,11 @@ def end_conversation(update, context):
     return ConversationHandler.END
 
 
+def back_to_menu(update, context):
+    _clean_msg(update, context)
+    return CHOOSING_COMMAND
+
+
 # todo: Adequate start message
 def start(update, context):
     """Send a message when the command /start is issued."""
@@ -108,11 +113,11 @@ def close_task(update, context):
         _LOGGER.exception('Unable to close task')
         return end_conversation(update, context)
     if not success:
-        update.message.reply_text('Вы не можете закрыть это задание',
+        update.message.reply_text('Вы не можете закрыть эту задачу',
                                   disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove())
     else:
-        update.message.reply_text('Задание успешно закрыто',
+        update.message.reply_text('Задача успешно закрыта',
                                   disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove())
     return end_conversation(update, context)
@@ -138,8 +143,8 @@ def update_deadline(update, context):
 
     if not success:
         update.message.reply_text('Вы не можете установить срок этому заданию',
-                                  disable_notification=True,
-                                  reply_markup=ReplyKeyboardRemove())
+                                  disable_notification=True)
+        return back_to_menu(update, context)
     else:
         update.message.reply_text(
             'Пожалуйста, выберите дату',
@@ -174,9 +179,8 @@ def deadline_cal_handler(update, context):
 
         if not success:
             msg = 'Вы не можете установить срок этому заданию'
-            update.message.reply_text(msg, disable_notification=True,
-                                      reply_markup=ReplyKeyboardRemove())
-            return end_conversation(update, context)
+            update.message.reply_text(msg, disable_notification=True)
+            return back_to_menu(update, context)
         else:
             user_data['deadline'] = full_date
             update.message.bot.delete_message(update.message.chat.id,
@@ -210,7 +214,7 @@ def get_dl_time(update, context):
         except (ValueError, AttributeError):
             msg = 'Извините, введенное Вами время не соответствует формату'
             update.message.reply_text(msg, disable_notification=True)
-            return end_conversation(update, context)
+            return back_to_menu(update, context)
 
         due_date = DEF_TZ.localize(due_date)
 
@@ -226,7 +230,7 @@ def get_dl_time(update, context):
     except (ValueError, ConnectionError, AttributeError):
         update.message.reply_text(_ERR_MSG, disable_notification=True)
         _LOGGER.exception('Unable to process task deadline time')
-    return end_conversation(update, context)
+    return back_to_menu(update, context)
 
 
 def _compile_list(rows, chat, bot, for_user=False):
@@ -354,11 +358,12 @@ def list_nav(update, context):
     """Parse callback from tasks list and flip pages"""
     data = update.callback_query.data
     try:
+        command = data[data.find(':') + 1:]
         pages = context.chat_data['pages']
         page_ind = context.chat_data['page ind']
         total = len(pages)
-        command = data[data.find(':') + 1:]
     except (IndexError, KeyError, ValueError):
+        context.bot.answer_callback_query(update.callback_query.id)
         _LOGGER.exception('Invalid callback data')
         return
     update.message = update.callback_query.message
@@ -440,13 +445,11 @@ def take_task(update, context):
 
     if not success:
         update.message.reply_text('Вы не можете взять это задание',
-                                  disable_notification=True,
-                                  reply_markup=ReplyKeyboardRemove())
+                                  disable_notification=True)
     else:
         update.message.reply_text('Задание захвачено',
-                                  disable_notification=True,
-                                  reply_markup=ReplyKeyboardRemove())
-    return end_conversation(update, context)
+                                  disable_notification=True)
+    return back_to_menu(update, context)
 
 
 def ret_task(update, context):
@@ -469,13 +472,11 @@ def ret_task(update, context):
 
     if not success:
         update.message.reply_text('Вы не можете вернуть это задание',
-                                  disable_notification=True,
-                                  reply_markup=ReplyKeyboardRemove())
+                                  disable_notification=True)
     else:
         update.message.reply_text('Вы отказались от задания',
-                                  disable_notification=True,
-                                  reply_markup=ReplyKeyboardRemove())
-    return end_conversation(update, context)
+                                  disable_notification=True)
+    return back_to_menu(update, context)
 
 
 def rem_deadline(update, context):
@@ -498,12 +499,11 @@ def rem_deadline(update, context):
     if not success:
         update.message.reply_text(
             'Вы не можете изменить срок выполнения этого задания',
-            disable_notification=True, reply_markup=ReplyKeyboardRemove())
+            disable_notification=True)
     else:
         update.message.reply_text('Срок выполнения отменен',
-                                  disable_notification=True,
-                                  reply_markup=ReplyKeyboardRemove())
-    return end_conversation(update, context)
+                                  disable_notification=True)
+    return back_to_menu(update, context)
 
 
 def done(update, context):
@@ -534,23 +534,19 @@ def set_marked_status(update, context):
     if not success:
         if marked:
             update.message.reply_text('Вы не можете отметить это задание',
-                                      disable_notification=True,
-                                      reply_markup=ReplyKeyboardRemove())
+                                      disable_notification=True)
         else:
             update.message.reply_text('Вы не можете снять отметку '
                                       'этого задания',
-                                      disable_notification=True,
-                                      reply_markup=ReplyKeyboardRemove())
+                                      disable_notification=True)
     else:
         if marked:
             update.message.reply_text('Отметка успешно добавлена',
-                                      disable_notification=True,
-                                      reply_markup=ReplyKeyboardRemove())
+                                      disable_notification=True)
         else:
             update.message.reply_text('Отметка успешно удалена',
-                                      disable_notification=True,
-                                      reply_markup=ReplyKeyboardRemove())
-    return end_conversation(update, context)
+                                      disable_notification=True)
+    return back_to_menu(update, context)
 
 
 def act_task(update, context, newly_created=False):
@@ -628,7 +624,8 @@ def act_task(update, context, newly_created=False):
 
         markup = ReplyKeyboardMarkup(buttons,
                                      selective=True,
-                                     resize_keyboard=True)
+                                     resize_keyboard=True,
+                                     one_time_keyboard=True)
         if newly_created:
             msg = 'Вы можете выбрать действие для этой задачи'
         else:
@@ -640,6 +637,6 @@ def act_task(update, context, newly_created=False):
         _LOGGER.exception(log_msg)
         return end_conversation(update, context)
 
-    update.message.reply_text(msg, reply_markup=markup,
+    msg = update.message.reply_text(msg, reply_markup=markup,
                               disable_notification=True)
     return CHOOSING_COMMAND

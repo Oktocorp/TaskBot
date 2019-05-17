@@ -8,8 +8,8 @@ act_handler = ConversationHandler(
         MessageHandler(Filters.regex('^(/act_[\d]+)'), response.act_task),
         CallbackQueryHandler(reminders.reset_reminder, pattern='^(pr:[\d]+)$'),
         MessageHandler(Filters.regex('^(/add)'), response.new_task),
-        MessageHandler(Filters.text & (~Filters.reply), response.add_task),
         MessageHandler(Filters.regex('^Покинуть меню$'), response.done),
+        MessageHandler(Filters.text & (~Filters.reply), response.add_task),
     ],
     states=
     {
