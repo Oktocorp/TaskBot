@@ -32,7 +32,7 @@ class DataBaseConnector:
             self._conn = psycopg2.connect(self._db_url, sslmode='require')
         except (Exception, psycopg2.DatabaseError):
             self._close_conn()
-            self._log.exception()
+            self._log.exception('Unable to connect to the DataBase')
             raise ConnectionError('Unable to connect to the DataBase')
 
         self._cur = self._conn.cursor()
@@ -44,7 +44,7 @@ class DataBaseConnector:
                 row = self._cur.fetchone()
         except (Exception, psycopg2.DatabaseError):
             self._close_conn()
-            self._log.exception()
+            self._log.exception('Unable to execute SQL')
             raise ValueError('Unable to execute SQL')
         rows_num = self._cur.rowcount
         self._close_conn()
@@ -65,7 +65,7 @@ class DataBaseConnector:
                                           cursor_factory=RealDictCursor)
         except (Exception, psycopg2.DatabaseError) as err:
             self._close_conn()
-            self._log.exception()
+            self._log.exception('Unable to execute SQL')
             raise ConnectionError('Unable to connect to the DataBase', err)
 
         self._cur = self._conn.cursor()
@@ -74,7 +74,7 @@ class DataBaseConnector:
             rows = self._cur.fetchall()
         except (Exception, psycopg2.DatabaseError) as err:
             self._close_conn()
-            self._log.exception()
+            self._log.exception('Unable to execute SQL')
             raise ValueError('Unable to execute SQL', err)
 
         self._close_conn()
