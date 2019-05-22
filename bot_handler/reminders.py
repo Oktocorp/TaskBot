@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from telegram import (InlineKeyboardButton, InlineKeyboardMarkup,
                       ReplyKeyboardRemove, ParseMode, ForceReply)
+from telegram.error import Unauthorized
 from telegram_calendar_keyboard import calendar_keyboard
 
 import db_connector
@@ -161,6 +162,8 @@ def send_reminders(context):
                  chat_id=rem['user_id'], text=resp_text,
                  reply_markup=markup, parse_mode=ParseMode.HTML)
             rems_to_close.append(rem['id'])
+        except Unauthorized:  # User has no chat with bot
+            pass
         except (ValueError, ConnectionError, KeyError):
             _LOGGER.exception('Unable to process reminder')
     try:

@@ -9,14 +9,9 @@ from bot_handler import conversations, response, reminders
 
 class BotHandler:
     def __init__(self):
-        # Fetch token from Heroku config var
-        self._token = os.environ['BOT_TOKEN']
-        self._app_path = os.environ['APP_PATH']
-        self._port = int(os.environ.get('PORT', '8443'))
-
         # File to store conversation states
         dump_fname = 'states.pickle'
-        self.updater = Updater(self._token, use_context=True,
+        self.updater = Updater(os.environ['BOT_TOKEN'], use_context=True,
                                persistence=PicklePersistence(dump_fname))
 
         # Get the dispatcher to register handlers
@@ -56,9 +51,7 @@ class BotHandler:
 
     def start(self):
         """Start the bot."""
-        self.updater.start_webhook(listen='0.0.0.0', port=self._port,
-                                   url_path=self._token)
-        self.updater.bot.set_webhook(self._app_path + self._token)
+        self.updater.start_polling()
         self.updater.job_queue.run_repeating(reminders.send_reminders,
                                              interval=60, first=0)
         self.updater.idle()
