@@ -47,16 +47,29 @@ def end_conversation(update, context):
     return ConversationHandler.END
 
 
-# todo: Adequate start message
 def start(update, context):
     """Send a message when the command /start is issued."""
-    update.message.reply_text('Greetings from DeltaSquad!',
-                              disable_notification=True)
+    msg = ('Добро пожаловать в Task-O-bot.\n'
+           'Для получения справки вызовите команду /help')
+    update.message.reply_text(msg, disable_notification=True)
 
 
 def help_msg(update, context):
     """Send a message when the command /help is issued."""
-    update.message.reply_text('HELP IS ON ITS WAY!!!',
+    msg = ('Я могу помочь вам управлять задачами, '
+           'а также присылать уведомления о них в указанное Вами время.\n\n'
+           '<b>Для корректной работы требуется запустить '
+           'личную беседу со мной</b>\n\n'
+           '<b>Доступные команды:</b>\n'
+           '/add - создать новое задание\n'
+           '(в личной беседе можно просто написать текстовое сообщение)\n'
+           '/list - список всех заданий\n'
+           '/free - список заданий без исполнителя\n'
+           '/my - список задач, взятых на исполнение\n'
+           '(доступна в личной беседе, отображает задачи со всех чатов)\n'
+           '/rem - список напоминаний (только в личной беседе)\n'
+           )
+    update.message.reply_text(msg, parse_mode=ParseMode.HTML,
                               disable_notification=True)
 
 
