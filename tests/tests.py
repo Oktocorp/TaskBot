@@ -66,6 +66,11 @@ class TaskWorkerTest(TestCase):
         self.assertTrue(
             self.db.rem_worker(self.task_id, self.chat_id, self.user_id))
 
+    def test_task_wrong_chat_assignment(self):
+        wrong_chat = self.chat_id + 1
+        self.assertFalse(self.db.assign_task(self.task_id, wrong_chat,
+                                             self.user_id, [self.user_id]))
+
     @classmethod
     def tearDownClass(cls):
         cls.db.close_task(cls.task_id, cls.chat_id, cls.user_id)
