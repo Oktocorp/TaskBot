@@ -35,5 +35,10 @@ class TaskCreateDestroyTest(TestCase):
         task_text = None
         with self.assertRaises(ValueError):
             self.db.add_task(chat_id, user_id, task_text)
-            
+
+    def test_task_close_base(self):
+        chat_id = 1
+        user_id = 1
+        task_id = self.db.add_task(chat_id, user_id, 'Test task')
+        self.assertTrue(self.db.close_task(task_id, chat_id, user_id))
 
