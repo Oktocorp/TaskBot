@@ -108,5 +108,20 @@ class TaskWorkerTest(TestCase):
         cls.db.close_task(cls.task_id, cls.chat_id, cls.user_id)
 
 
+class TaskModifyTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.db = db_connector.DataBaseConnector()
+        cls.db._log = MagicMock()
+        cls.chat_id = 1
+        cls.user_id = 1
+        cls.task_id = cls.db.add_task(cls.chat_id, cls.user_id, 'Test task')
+
+    
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.close_task(cls.task_id, cls.chat_id, cls.user_id)
+        
+
 if __name__ == '__main__':
     main()
