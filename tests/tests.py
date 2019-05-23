@@ -49,3 +49,23 @@ class TaskCreateDestroyTest(TestCase):
         self.assertFalse(self.db.close_task(task_id, chat_id, user_id))
 
 
+class TaskWorkerTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.db = db_connector.DataBaseConnector()
+        cls.db._log = MagicMock()
+        cls.chat_id = 1
+        cls.user_id = 1
+        cls.task_id = cls.db.add_task(cls.chat_id, cls.user_id, 'Test task')
+
+    def test_task_assignment(self):
+        self.assertTrue(self.db.assign_task(self.task_id, self.chat_id,
+                                            self.user_id, [self.user_id]))
+        info = self.db.task_info(self.task_id)
+        self.assertIn(self.user_id, info['workers'])
+        self.assertTrue(
+            self.db.rem_worker(self.task_id, self.chat_id, self.user_id))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.close_task(cls.task_id, cls.chat_id, cls.user_id)
