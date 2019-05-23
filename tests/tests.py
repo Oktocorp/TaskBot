@@ -159,11 +159,16 @@ class TaskModifyTest(TestCase):
                                                   self.user_id, marked=False))
         info = self.db.task_info(self.task_id)
         self.assertFalse(info['marked'])
-    
+
+    def test_marked_status_invalid(self):
+        with self.assertRaises(ValueError):
+            self.db.set_marked_status(self.task_id, self.chat_id, self.user_id,
+                                      marked=None)
+
     @classmethod
     def tearDownClass(cls):
         cls.db.close_task(cls.task_id, cls.chat_id, cls.user_id)
-        
+
 
 if __name__ == '__main__':
     main()
