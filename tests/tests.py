@@ -117,6 +117,13 @@ class TaskModifyTest(TestCase):
         cls.user_id = 1
         cls.task_id = cls.db.add_task(cls.chat_id, cls.user_id, 'Test task')
 
+    def test_task_dl_setter(self):
+        deadline = datetime.now(timezone.utc)
+        self.assertTrue(self.db.set_deadline(self.task_id, self.chat_id,
+                                             self.user_id, deadline))
+        info = self.db.task_info(self.task_id)
+        self.assertEqual(deadline, info['deadline'])
+
     
     @classmethod
     def tearDownClass(cls):
