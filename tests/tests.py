@@ -29,3 +29,11 @@ class TaskCreateDestroyTest(TestCase):
         self.assertEqual(deadline, info['deadline'])
         self.assertEqual(workers, info['workers'])
 
+    def test_task_add_invalid_text(self):
+        chat_id = 1
+        user_id = 1
+        task_text = None
+        with self.assertRaises(ValueError):
+            self.db.add_task(chat_id, user_id, task_text)
+            
+
