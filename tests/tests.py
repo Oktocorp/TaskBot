@@ -150,7 +150,15 @@ class TaskModifyTest(TestCase):
         self.assertFalse(self.db.set_deadline(new_task_id, self.chat_id,
                                               self.user_id, deadline))
 
-
+    def test_task_marked_status(self):
+        self.assertTrue(self.db.set_marked_status(self.task_id, self.chat_id,
+                                                  self.user_id, marked=True))
+        info = self.db.task_info(self.task_id)
+        self.assertTrue(info['marked'])
+        self.assertTrue(self.db.set_marked_status(self.task_id, self.chat_id,
+                                                  self.user_id, marked=False))
+        info = self.db.task_info(self.task_id)
+        self.assertFalse(info['marked'])
     
     @classmethod
     def tearDownClass(cls):
