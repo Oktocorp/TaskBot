@@ -124,6 +124,12 @@ class TaskModifyTest(TestCase):
         info = self.db.task_info(self.task_id)
         self.assertEqual(deadline, info['deadline'])
 
+    def test_task_remove_dl(self):
+        self.assertTrue(self.db.set_deadline(self.task_id, self.chat_id,
+                                             self.user_id, deadline=None))
+        info = self.db.task_info(self.task_id)
+        self.assertIsNone(info['deadline'])
+
     
     @classmethod
     def tearDownClass(cls):
