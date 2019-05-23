@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from unittest import TestCase
+from unittest import TestCase, main
 from unittest.mock import MagicMock
 
 import db_connector
@@ -84,6 +84,29 @@ class TaskWorkerTest(TestCase):
         self.assertFalse(
             self.db.rem_worker(self.task_id, self.chat_id, wrong_id))
 
+    def test_tasks_from_two_chats(self):
+        chat_id_1 = 1
+        chat_id_2 = 2
+        task_1 = self.db.add_task(chat_id_1, self.user_id, 'Test task')
+        task_2 = self.db.add_task(chat_id_2, self.user_id, 'Test task')
+        self.assertNotEqual(task_1, task_2)
+        self.assertTrue(self.db.assign_task(task_1, chat_id_1,
+                                            self.user_id, [self.user_id]))
+        self.assertTrue(self.db.assign_task(task_2, chat_id_2,
+                                            self.user_id, [self.user_id]))
+        result = self.db.get_user_tasks(self.user_id)
+        self.assertIn(task_1, [task['id'] for task in result])
+        self.assertIn(task_2, [task['id'] for task in result])
+        self.assertTrue(self.db.close_task(task_1, chat_id_1, self.user_id))
+        self.assertTrue(self.db.close_task(task_2, chat_id_2, self.user_id))
+        result = self.db.get_user_tasks(self.user_id)
+        self.assertNotIn(task_1, [task['id'] for task in result])
+        self.assertNotIn(task_2, [task['id'] for task in result])
+
     @classmethod
     def tearDownClass(cls):
         cls.db.close_task(cls.task_id, cls.chat_id, cls.user_id)
+
+
+if __name__ == '__main__':
+    main()
