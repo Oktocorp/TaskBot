@@ -1,3 +1,13 @@
+stages:
+  - test
+  - deploy
+
+tests:
+  stage: test
+  script:
+    - pip install -r requirements.txt
+    - python -m unittest -v tests/tests.py
+
 development:
   type: deploy
   script:
