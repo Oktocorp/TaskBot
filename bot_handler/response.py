@@ -1,7 +1,7 @@
 import pytz
 import db_connector
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from telegram import (ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove,
                       ForceReply, TelegramError, InlineKeyboardButton,
                       InlineKeyboardMarkup)
@@ -300,8 +300,11 @@ def _compile_list(rows, chat, bot, for_user=False):
         # Localize UTC time
         if row['deadline']:
             dl_format = ' %a %d.%m'
+            today = datetime.now(timezone.utc).astimezone(DEF_TZ)
+            if today.year != row['deadline'].year:
+                dl_format += '.%Y'
             if row['deadline'].second == 0:  # if time is not default
-                dl_format += ' %H:%M'
+                dl_format += '.%H:%M'
             dl = row['deadline'].astimezone(DEF_TZ).strftime(dl_format)
             resp_text += f'<b>Срок:</b> <code>{dl}</code>\n'
             task_lines += 1
@@ -588,7 +591,7 @@ def act_task(update, context, newly_created=False):
     user_data = context.user_data
     try:
         text_task_id = _get_task_id(update.message.text)
-        if text_task_id:
+        if text_task_id and not newly_created:
             task_id = int(text_task_id)
             user_data['task id'] = task_id
         else:
