@@ -61,10 +61,10 @@ def help_msg(update, context):
            '<b>Для корректной работы требуется запустить '
            'личную беседу со мной</b>\n\n'
            '<b>Доступные команды:</b>\n'
-           '/add - создать новое задание\n'
+           '/add - создать новую задачу\n'
            '(в личной беседе можно просто написать текстовое сообщение)\n'
-           '/list - список всех заданий\n'
-           '/free - список заданий без исполнителя\n'
+           '/list - список всех задач\n'
+           '/free - список задач без исполнителя\n'
            '/my - список задач, взятых на исполнение\n'
            '(доступна в личной беседе, отображает задачи со всех чатов)\n'
            '/rem - список напоминаний (только в личной беседе)\n'
@@ -87,7 +87,7 @@ def add_task(update, context):
     creator_id = update.message.from_user.id
     msg_text = update.message.text.strip()
     if not msg_text:
-        update.message.reply_text('Вы не можете добавить пустое задание')
+        update.message.reply_text('Вы не можете добавить пустую задачу')
         return end_conversation(update, context)
     try:
         handler = db_connector.DataBaseConnector()
@@ -98,7 +98,7 @@ def add_task(update, context):
                                   reply_markup=ReplyKeyboardRemove())
         _LOGGER.exception('Unable to add task')
         return end_conversation(update, context)
-    update.message.reply_text('Задание успешно добавлено.\n'
+    update.message.reply_text('Задача успешно добавлена.\n'
                               f'Управление доступно по команде /act_{task_id}')
     return act_task(update, context, newly_created=True)
 
@@ -154,7 +154,8 @@ def update_deadline(update, context):
         return end_conversation(update, context)
 
     if not success:
-        update.message.reply_text('Вы не можете установить срок этому заданию',
+        update.message.reply_text('Вы не можете установить срок '
+                                  'для этой задачи',
                                   disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove())
     else:
@@ -191,7 +192,7 @@ def deadline_cal_handler(update, context):
             return end_conversation(update, context)
 
         if not success:
-            msg = 'Вы не можете установить срок этому заданию'
+            msg = 'Вы не можете установить срок для этой задачи'
             update.message.reply_text(msg, disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
             return end_conversation(update, context)
@@ -236,7 +237,7 @@ def get_dl_time(update, context):
         success = handler.set_deadline(task_id, chat_id, user_id, due_date)
         if not success:
             update.message.reply_text(
-                'Вы не можете установить срок этому заданию.',
+                'Вы не можете установить срок для этой задачи.',
                 disable_notification=True)
         else:
             update.message.reply_text('Время выполнения установлено',
@@ -470,11 +471,11 @@ def take_task(update, context):
         return end_conversation(update, context)
 
     if not success:
-        update.message.reply_text('Вы не можете взять это задание',
+        update.message.reply_text('Вы не можете взять эту задачу',
                                   disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove())
     else:
-        update.message.reply_text('Задание захвачено',
+        update.message.reply_text('Задача взята на исполнение',
                                   disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove())
     return end_conversation(update, context)
@@ -499,11 +500,11 @@ def ret_task(update, context):
         return end_conversation(update, context)
 
     if not success:
-        update.message.reply_text('Вы не можете вернуть это задание',
+        update.message.reply_text('Вы не можете отказаться от этой задачи',
                                   disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove())
     else:
-        update.message.reply_text('Вы отказались от задания',
+        update.message.reply_text('Вы отказались от задачи',
                                   disable_notification=True,
                                   reply_markup=ReplyKeyboardRemove())
     return end_conversation(update, context)
@@ -528,7 +529,7 @@ def rem_deadline(update, context):
         return end_conversation(update, context)
     if not success:
         update.message.reply_text(
-            'Вы не можете изменить срок выполнения этого задания',
+            'Вы не можете изменить срок выполнения для этой задачи',
             disable_notification=True, reply_markup=ReplyKeyboardRemove())
     else:
         update.message.reply_text('Срок выполнения отменен',
@@ -564,12 +565,12 @@ def set_marked_status(update, context):
         return end_conversation(update, context)
     if not success:
         if marked:
-            update.message.reply_text('Вы не можете отметить это задание',
+            update.message.reply_text('Вы не можете отметить эту задачу',
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
         else:
             update.message.reply_text('Вы не можете снять отметку '
-                                      'этого задания',
+                                      'с этой задачи',
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
     else:
@@ -601,7 +602,7 @@ def act_task(update, context, newly_created=False):
         task_chat = update.message.bot.get_chat(task_info['chat_id'])
 
         if task_chat.id != chat_id and user_id not in task_info['workers']:
-            update.message.reply_text('Вы не можете управлять этим заданием',
+            update.message.reply_text('Вы не можете управлять этой задачей',
                                       disable_notification=True,
                                       reply_markup=ReplyKeyboardRemove())
             return end_conversation(update, context)
